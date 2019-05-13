@@ -37,11 +37,11 @@ from pyworkflow.em.convert import ImageHandler
 import pyworkflow.utils as pwutils
 from pyworkflow.utils.properties import Message
 
-from appion.convert import readSetOfCoordinates
+from xmipp2.convert import readSetOfCoordinates
 
 
 class DogPickerProtPicking(ProtParticlePickingAuto):
-    """ Protocol to pick particles in a set of micrographs using appion
+    """ Protocol to pick particles in a set of micrographs using xmipp2
     dogpicker.
     """
     _label = 'dogpicker'
@@ -89,7 +89,7 @@ class DogPickerProtPicking(ProtParticlePickingAuto):
             pwutils.createLink(micName, inputMic)
 
         # Prepare environment
-        from appion import Plugin
+        from xmipp2 import Plugin
         Plugin.getEnviron()
 
         # Program to execute and it arguments

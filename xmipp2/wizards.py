@@ -35,8 +35,8 @@ from pyworkflow.em.wizard import EmWizard
 from pyworkflow.em.viewers import CoordinatesObjectView
 from pyworkflow.utils import makePath, cleanPath, readProperties
 
-from appion.protocols import DogPickerProtPicking
-from appion import Plugin
+from xmipp2.protocols import DogPickerProtPicking
+from xmipp2 import Plugin
 
 
 #===============================================================================

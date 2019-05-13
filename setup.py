@@ -21,7 +21,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 # Fields marked as "Optional" may be commented out.
 
 setup(
-    name='scipion-em-appion',  # Required
+    name='scipion-em-xmipp2',  # Required
     version='1.0.2',  # Required
     description='Appion dogpicker ready to use in scipion.',  # Required
     long_description=long_description,  # Optional
@@ -31,6 +31,6 @@ setup(
     keywords='scipion cryoem imageprocessing scipion-2.0',  # Optional
     packages=find_packages(),
     package_data={  # Optional
-       'appion': ['appion_logo.png', 'protocols.conf'],
+       'xmipp2': ['appion_logo.png', 'protocols.conf'],
     }
 )
