@@ -25,11 +25,6 @@
 # *
 # **************************************************************************
 """
-Bibtex string file for DoGPiker.
-"""
-
-_bibtexStr = """
-
 @Article{Voss2009,
   Title                    = {BDoG Picker and TiltPicker: software tools to facilitate particle selection in single particle electron microscopy.},
   Author                   = {Voss, N.R. Yoshioka, C.K. Radermacher, M. Potter, C.S. and Carragher, B.},
@@ -47,7 +42,3 @@ _bibtexStr = """
 }
 
 """
-
-from pyworkflow.utils import parseBibTex
-
-_bibtex = parseBibTex(_bibtexStr)  

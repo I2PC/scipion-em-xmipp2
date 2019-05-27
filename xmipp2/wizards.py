@@ -51,7 +51,7 @@ class DogPickerWizard(EmWizard):
         autopickProt = form.protocol
         micSet = autopickProt.getInputMicrographs()
         if not micSet:
-            print 'must specify input micrographs'
+            print('must specify input micrographs')
             return
         project = autopickProt.getProject()
         micfn = micSet.getFileName()

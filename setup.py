@@ -23,14 +23,14 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     name='scipion-em-xmipp2',  # Required
     version='1.0.2',  # Required
-    description='Appion dogpicker ready to use in scipion.',  # Required
+    description='xmipp2 ready to use in scipion.',  # Required
     long_description=long_description,  # Optional
-    url='https://github.com/scipion-em/scipion-em-appion',  # Optional
+    url='https://github.com/scipion-em/scipion-em-xmipp2',  # Optional
     author='I2PC',  # Optional
     author_email='scipion@cnb.csic.es',  # Optional
     keywords='scipion cryoem imageprocessing scipion-2.0',  # Optional
     packages=find_packages(),
     package_data={  # Optional
-       'xmipp2': ['appion_logo.png', 'protocols.conf'],
+       'xmipp2': ['xmipp_logo.png', 'protocols.conf'],
     }
 )

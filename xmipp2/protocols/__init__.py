@@ -25,4 +25,4 @@
 # *
 # **************************************************************************
 
-from .protocol_dogpicker import DogPickerProtPicking
+from .protocol_mltomo import DogPickerProtPicking

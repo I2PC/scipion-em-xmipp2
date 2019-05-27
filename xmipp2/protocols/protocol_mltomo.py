@@ -32,28 +32,23 @@
 import os
 
 import pyworkflow.protocol.params as params
-from pyworkflow.em.protocol import ProtParticlePickingAuto
 from pyworkflow.em.convert import ImageHandler
 import pyworkflow.utils as pwutils
 from pyworkflow.utils.properties import Message
+from tomo.protocol_base import ProtTomoSubtomogramAveraging
 
-from xmipp2.convert import readSetOfCoordinates
-
-
-class DogPickerProtPicking(ProtParticlePickingAuto):
-    """ Protocol to pick particles in a set of micrographs using xmipp2
-    dogpicker.
+class XmippProtMLTomo(ProtTomoSubtomogramAveraging):
+    """ Protocol to align subtomograms using mltomo
     """
-    _label = 'dogpicker'
+    _label = 'mltomo'
         
     def __init__(self, **args):
-        ProtParticlePickingAuto.__init__(self, **args)
+        ProtTomoSubtomogramAveraging.__init__(self, **args)
 
 
     #--------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
 
-        ProtParticlePickingAuto._defineParams(self, form)
         form.addParam('diameter', params.IntParam, default=100,
                    label='Diameter of particle in Å')
         form.addParam('invert', params.BooleanParam, default=False,

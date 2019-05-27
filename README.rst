@@ -1,8 +1,8 @@
 =============
-Appion plugin
+Xmipp2 plugin
 =============
 
-This plugin allows to use Appion within the Scipion framework.
+This plugin allows to use xmipp2 within the Scipion framework.
 
 =====
 Setup
@@ -12,7 +12,7 @@ Setup
 
 .. code-block::
 
-    scipion installp -p scipion-em-appion
+    scipion installp -p scipion-em-xmipp2
 
 OR
 
@@ -22,5 +22,5 @@ Alternatively, in devel mode:
 
 .. code-block::
 
-    scipion installp -p local/path/to/scipion-em-appion --devel
+    scipion installp -p local/path/to/scipion-em-xmipp2 --devel
 

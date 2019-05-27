@@ -25,27 +25,23 @@
 # *
 # **************************************************************************
 """
-This package contains the protocols and data for APPION
+This package contains the protocols and data for xmipp 2.4
 """
 import os
 import pyworkflow.em
 
 from pyworkflow.utils import Environ
-from .constants import DOGPICKER_HOME, V0_2_1_1
+from .constants import XMIPP2_HOME
 
-
-_references = ['Voss2009']
-_logo = 'appion_logo.png'
-
+_currentVersion = '1.0'
 
 class Plugin(pyworkflow.em.Plugin):
-    _homeVar = DOGPICKER_HOME
-    _pathVars = [DOGPICKER_HOME]
-    _supportedVersions = V0_2_1_1
+    _homeVar = XMIPP2_HOME
+    _pathVars = [XMIPP2_HOME]
 
     @classmethod
     def _defineVariables(cls):
-        cls._defineEmVar(DOGPICKER_HOME, 'dogpicker-0.2.1.1')
+        cls._defineEmVar(XMIPP2_HOME, _currentVersion)
 
     @classmethod
     def getEnviron(cls):
@@ -54,7 +50,7 @@ class Plugin(pyworkflow.em.Plugin):
 
         environ.update({
             'PATH': Plugin.getHome(),
-            'LD_LIBRARY_PATH': str.join(cls.getHome(), 'appionlib')
+            'LD_LIBRARY_PATH': str.join(cls.getHome(), 'xmipp2lib')
                                + ":" + cls.getHome(),
         }, position=Environ.BEGIN)
 
@@ -62,20 +58,36 @@ class Plugin(pyworkflow.em.Plugin):
 
     @classmethod
     def isVersionActive(cls):
-        return cls.getActiveVersion().startswith(V0_2_1_1)
+        return cls.getActiveVersion().startswith(_currentVersion)
 
     @classmethod
     def defineBinaries(cls, env):
-
-        # Add dogpicker
-        env.addPackage('dogpicker', version='0.2.1.1',
-                       tar='dogpicker-0.2.1.1.tgz',
+        compileCmd = [("./scons.configure && ./scons.compile -j 8",["lib/libXmippRecons_Interface.so","bin/xmipp_mpi_ml_tomo"])]
+        env.addPackage('xmipp2', version='2.4',
+                       tar='Xmipp-2.4-src.tgz',
+                       commands=compileCmd,
                        default=True)
 
 
 pyworkflow.em.Domain.registerPlugin(__name__)
 
 
+@classmethod
+def defineBinaries(cls, env):
+    """ Define the Xmipp binaries/source available tgz.
+    """
+    scons = tryAddPipModule(env, 'scons', '3.0.4', default=True)
 
-
-
+def tryAddPipModule(env, moduleName, *args, **kwargs):
+    """ To try to add certain pipModule.
+        If it fails due to it is already add by other plugin or Scipion,
+          just returns its name to use it as a dependency.
+        Raise the exception if unknown error is gotten.
+    """
+    try:
+        return env.addPipModule(moduleName, *args, **kwargs)._name
+    except Exception as e:
+        if "Duplicated target '%s'" % moduleName == str(e):
+            return moduleName
+        else:
+            raise Exception(e)
