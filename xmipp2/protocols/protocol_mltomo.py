@@ -33,7 +33,7 @@ import pyworkflow.utils as pwutils
 from pyworkflow.utils.path import makePath
 
 from tomo.protocols.protocol_base import ProtTomoSubtomogramAveraging
-from pyworkflow.protocol.params import PointerParam
+from pyworkflow.protocol.params import PointerParam, IntParam
 from xmipp2.convert import writeSetOfVolumes
 
 
@@ -49,14 +49,20 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
     #--------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='Input subtomograms')
-        form.addParam('inputVolumes', PointerParam, pointerClass="SetOfSubTomograms", label='Set of volumes',
-                      help="Set of subtomograms to align with MLTomo")
-        form.addParallelSection(threads=0, mpi=4)
+        form.addParam('inputVolumes', PointerParam, pointerClass="SetOfSubTomograms, SetOfVolumes",
+                      label='Set of volumes', help="Set of subtomograms to align with MLTomo")
+        form.addParam('numberOfReferences', IntParam, label='Number of references', default=3,
+                      help="Number of references to generate automatically")
+        # form.addParam('docFile', ??, pointerClass="??", label='DocFile',
+        #               help="Docfile with orientations and missing data regions for all particles")
+        # form.addParam('missingFile', ??, pointerClass="??", label='missingFile',
+        #               help="Docfile with missing data region definitions")
+        form.addParallelSection(threads=0, mpi=1)
 
     #--------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep('convertInputStep')
-        #self._insertFunctionStep('runMLTomo')
+        self._insertFunctionStep('runMLTomo')
         #self._insertFunctionStep('createOutput')
 
     #--------------------------- STEPS functions -------------------------------
@@ -68,11 +74,18 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRoot,self._getExtraPath("subtomograms.sel")))
 
     def runMLTomo(self):
-        outputFile = self._getExtraPath(pwutils.replaceBaseExt(inputMic, "txt"))  # Cambiar????
-        args = " --image=%s --outfile=%s" % (inputMic, outputFile)
-        self.runJob("xmipp_ml_tomo", args, numberOfMPIs=self.numberOfMpi.get())
+        fnIn = self._getExtraPath("subtomograms.sel")
+        args = ' -i ' + fnIn + \
+                 ' -o mltomo' + \
+                 ' -nref ' + str(self.numberOfReferences.get())
+                 # ' -doc ' + str(self.docFile.get())
+                 # ' -missing ' + str(self.maxPsi.get())
+
+        self.runJob("xmipp_ml_tomo", args, numberOfMpi=self.numberOfMpi.get())
     
     def createOutput(self):
+        # si entro con SetOfSubtomos => salida SetOfSubtomos
+        # si entro con SetOfVolumes => salida SetOfVolumes
         pass
 
     #--------------------------- INFO functions --------------------------------

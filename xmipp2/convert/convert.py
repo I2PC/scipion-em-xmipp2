@@ -40,7 +40,7 @@ import xmippLib
 
 
 def readSetOfCoordinates(workDir, micSet, coordSet):
-    """ Read from Appion .txt files.                                QUITAR/CAMBIAR ???
+    """ Read from Appion .txt files.
     It is expected a file named: base.txt under the workDir.
     Params:
         workDir: where the Appion dogpicker output files are located.
