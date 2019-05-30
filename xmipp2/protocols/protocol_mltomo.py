@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 # **************************************************************************
 # *
-# * Authors:     Laura del Cano (ldelcano@cnb.csic.es) [1]
-# *              J.M. De la Rosa Trevin (delarosatrevin@scilifelab.se) [2]
-# *              Yunior C. Fonseca Reyna (cfonseca@cnb.csic.es) [1]
+# * Authors:     Carlos Oscar Sanchez Sorzano
+# *              Estrella Fernandez Gimenez
 # *
-# * [1] BCU, Centro Nacional de Biotecnologia, CSIC
-# * [2] SciLifeLab, Stockholm University
+# *  BCU, Centro Nacional de Biotecnologia, CSIC
 # *
 # *
 # * This program is free software; you can redistribute it and/or modify
@@ -30,16 +28,18 @@
 # **************************************************************************
 
 import os
-
-import pyworkflow.protocol.params as params
 from pyworkflow.em.convert import ImageHandler
 import pyworkflow.utils as pwutils
-from pyworkflow.utils.properties import Message
-from tomo.protocol_base import ProtTomoSubtomogramAveraging
+from pyworkflow.utils.path import makePath
 
-class XmippProtMLTomo(ProtTomoSubtomogramAveraging):
-    """ Protocol to align subtomograms using mltomo
-    """
+from tomo.protocols.protocol_base import ProtTomoSubtomogramAveraging
+from pyworkflow.protocol.params import PointerParam
+from xmipp2.convert import writeSetOfVolumes
+
+
+class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
+    """ Protocol to align subtomograms using MLTomo """
+
     _label = 'mltomo'
         
     def __init__(self, **args):
@@ -48,111 +48,40 @@ class XmippProtMLTomo(ProtTomoSubtomogramAveraging):
 
     #--------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
+        form.addSection(label='Input subtomograms')
+        form.addParam('inputVolumes', PointerParam, pointerClass="SetOfSubTomograms", label='Set of volumes',
+                      help="Set of subtomograms to align with MLTomo")
+        form.addParallelSection(threads=0, mpi=4)
 
-        form.addParam('diameter', params.IntParam, default=100,
-                   label='Diameter of particle in Å')
-        form.addParam('invert', params.BooleanParam, default=False,
-                      label='Invert',
-                      help = "Invert image before picking, DoG normally picks "
-                             "white particles.")
-        form.addParam('threshold', params.FloatParam, default=0.5,
-                      label='Threshold',
-                      help = "Threshold in standard deviations above the mean, "
-                             "e.g. --thresh=0.7")
-        form.addParam('extraParams', params.StringParam,
-                      expertLevel=params.LEVEL_ADVANCED,
-                      label='Additional parameters',
-                      help='Additional parameters for dogpicker: \n  '
-                           '--num-slices=, --size-range=, --max-thresh=, --max-area='
-                           '--max-peaks=')
+    #--------------------------- INSERT steps functions --------------------------------------------
+    def _insertAllSteps(self):
+        self._insertFunctionStep('convertInputStep')
+        #self._insertFunctionStep('runMLTomo')
+        #self._insertFunctionStep('createOutput')
 
     #--------------------------- STEPS functions -------------------------------
-    def _pickMicrograph(self, mic, args):
-        # Prepare mic folder and convert if needed
-        micName = mic.getFileName()
-        micDir = self._getTmpPath(pwutils.removeBaseExt(micName))
-        pwutils.makePath(micDir)
+    def convertInputStep(self):
+        fnDir=self._getExtraPath("inputVolumes")
+        makePath(fnDir)
+        fnRoot=os.path.join(fnDir,"subtomo")
+        writeSetOfVolumes(self.inputVolumes.get(),fnRoot)
+        self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRoot,self._getExtraPath("subtomograms.sel")))
 
-        ih = ImageHandler()
-        # If needed convert micrograph to mrc format, otherwise link it
-        if pwutils.getExt(micName) != ".mrc":
-            fnMicBase = pwutils.replaceBaseExt(micName, 'mrc')
-            inputMic = os.path.join(micDir, fnMicBase)
-            ih.convert(mic.getLocation(), inputMic)
-        else:
-            inputMic = os.path.join(micDir, os.path.basename(micName))
-            pwutils.createLink(micName, inputMic)
-
-        # Prepare environment
-        from xmipp2 import Plugin
-        Plugin.getEnviron()
-
-        # Program to execute and it arguments
-        program = "ApDogPicker.py"
-        outputFile = self._getExtraPath(pwutils.replaceBaseExt(inputMic, "txt"))
-
-        args += " --image=%s --outfile=%s" % (inputMic, outputFile)
-
-        self.runJob(program, args)
+    def runMLTomo(self):
+        outputFile = self._getExtraPath(pwutils.replaceBaseExt(inputMic, "txt"))  # Cambiar????
+        args = " --image=%s --outfile=%s" % (inputMic, outputFile)
+        self.runJob("xmipp_ml_tomo", args, numberOfMPIs=self.numberOfMpi.get())
     
-    def createOutputStep(self):
+    def createOutput(self):
         pass
 
     #--------------------------- INFO functions --------------------------------
     def _summary(self):
         summary = []
-        summary.append("Number of input micrographs: %d"
-                       % self.getInputMicrographs().getSize())
-        if self.getOutputsSize() > 0:
-            summary.append("Number of particles picked: %d"
-                           % self.getCoords().getSize())
-            summary.append("Particle size: %d" % self.getCoords().getBoxSize())
-            summary.append("Threshold: %0.2f" % self.threshold)
-            if self.extraParams.hasValue():
-                summary.append("And other parameters: %s" % self.extraParams)
-        else:
-            summary.append(Message.TEXT_NO_OUTPUT_CO)
         return summary
 
-    def _citations(self):
-        return ['Voss2009']
 
     def _methods(self):
-        methodsMsgs = []
-        if self.getInputMicrographs() is None:
-            return ['Input micrographs not available yet.']
-        methodsMsgs.append("Input micrographs %s of size %d."
-                           % (self.getObjectTag(self.getInputMicrographs()),
-                              self.getInputMicrographs().getSize()))
-
-        if self.getOutputsSize() > 0:
-            output = self.getCoords()
-            methodsMsgs.append('%s: User picked %d particles with a particle '
-                               'size of %d and threshold %0.2f.'
-                               % (self.getObjectTag(output), output.getSize(),
-                                  output.getBoxSize(), self.threshold))
-        else:
-            methodsMsgs.append(Message.TEXT_NO_OUTPUT_CO)
-
-        return methodsMsgs
-
-    #--------------------------- UTILS functions -------------------------------
-    def _getPickArgs(self):
-
-        args = "--diam=%0.3f " % self.diameter.get()
-        args += "--apix=%0.3f " % self.getInputMicrographs().getSamplingRate()
-        args += "--thresh=%f" % self.threshold
-
-        if self.invert:
-            args += " --invert"
-
-        args += " " + self.extraParams.get('')
-
-        return [args]
-
-    def readCoordsFromMics(self, workingDir, micList, coordSet):
-        coordSet.setBoxSize(round(self.diameter.get()/self.getInputMicrographs().getSamplingRate()))
-        readSetOfCoordinates(workingDir, micList, coordSet)
-    
-    def getCoordsDir(self):
-        return self._getExtraPath()
+        methods = []
+        methods.append(" ")
+        return methods

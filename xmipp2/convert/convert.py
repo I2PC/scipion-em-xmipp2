@@ -31,13 +31,16 @@ This module contains converter functions that will serve to:
 2. Read from Appion files to base classes
 """
 
+from pyworkflow.em.convert import ImageHandler
 from pyworkflow.em.data import Coordinate
 from pyworkflow.em.metadata import MetaData, MDL_XCOOR, MDL_YCOOR
+
 from pyworkflow.utils.path import replaceBaseExt, join, exists
+import xmippLib
 
 
 def readSetOfCoordinates(workDir, micSet, coordSet):
-    """ Read from Appion .txt files.
+    """ Read from Appion .txt files.                                QUITAR/CAMBIAR ???
     It is expected a file named: base.txt under the workDir.
     Params:
         workDir: where the Appion dogpicker output files are located.
@@ -66,4 +69,35 @@ def readCoordinates(mic, fileName, coordsSet):
 
 def writeSetOfCoordinates():
     pass
+
+
+def writeSetOfVolumes(setOfVolumes, outputFnRoot):
+    ih = ImageHandler()
+    i = 1
+    for volume in setOfVolumes:
+        ih.convert(volume, "%s%06d.vol"%(outputFnRoot,i))
+        i+=1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

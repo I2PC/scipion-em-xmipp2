@@ -25,4 +25,4 @@
 # *
 # **************************************************************************
 
-from .protocol_mltomo import DogPickerProtPicking
+from .protocol_mltomo import Xmipp2ProtMLTomo

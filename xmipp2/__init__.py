@@ -33,32 +33,31 @@ import pyworkflow.em
 from pyworkflow.utils import Environ
 from .constants import XMIPP2_HOME
 
-_currentVersion = '1.0'
-
 class Plugin(pyworkflow.em.Plugin):
     _homeVar = XMIPP2_HOME
     _pathVars = [XMIPP2_HOME]
 
+
     @classmethod
     def _defineVariables(cls):
-        cls._defineEmVar(XMIPP2_HOME, _currentVersion)
+        cls._defineEmVar(XMIPP2_HOME, "Xmipp-2.4-src")
+
 
     @classmethod
     def getEnviron(cls):
-        """ Setup the environment variables needed to launch Appion. """
+        """ Setup the environment variables needed to launch Xmipp2. """
         environ = Environ(os.environ)
 
         environ.update({
-            'PATH': Plugin.getHome(),
-            'LD_LIBRARY_PATH': str.join(cls.getHome(), 'xmipp2lib')
-                               + ":" + cls.getHome(),
+            'PATH': os.path.join(cls.getVar(XMIPP2_HOME),'bin'),
+            'LD_LIBRARY_PATH': os.path.join(cls.getVar(XMIPP2_HOME),'lib'),
         }, position=Environ.BEGIN)
 
         return environ
 
     @classmethod
     def isVersionActive(cls):
-        return cls.getActiveVersion().startswith(_currentVersion)
+        return cls.getActiveVersion().startswith("")
 
     @classmethod
     def defineBinaries(cls, env):
