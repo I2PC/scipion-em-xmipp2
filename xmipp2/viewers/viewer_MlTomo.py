@@ -34,7 +34,7 @@ from xmipp2.protocols import Xmipp2ProtMLTomo
 from pyworkflow.viewer import DESKTOP_TKINTER, WEB_DJANGO, ProtocolViewer
 from pyworkflow.protocol.params import LabelParam
 from pyworkflow.em.viewers.plotter import EmPlotter
-
+from pyworkflow.em.viewers.views import DataView
 
 import xmippLib
 import os
@@ -58,10 +58,9 @@ class Xmipp2ProtMlTomoViewer(ProtocolViewer):
         return {'doShowFsc': self._viewFsc}
 
     def _viewFsc(self, e=None):
-        return self._loadPlots("Fourier Shell Correlation", 'FSC',
-                               xmippLib.MDL_RESOLUTION_FRC, color='r')
+        return self._loadPlots("Fourier Shell Correlation", 'FSC', color='r')
 
-    def _loadPlots(self, title, plotLabel, resolutionLabel, **kwargs):
+    def _loadPlots(self, title, plotLabel, **kwargs):
         """ Check if the FSC metadata is generated and if so,
         read the plots and the metadata.
         *args and **kwargs will be passed to self._createPlot function.
@@ -76,16 +75,12 @@ class Xmipp2ProtMlTomoViewer(ProtocolViewer):
         lines = fnFsc.readlines()
         freq = []
         # fnClasses = self.protocol._getExtraPath("Classes") # las clases que quiero son las q se han generado
-        # classes = [] # j,i (j num classes, i num lineas)
+        classes = [] # j,i (j num classes, i num lineas)
         for i in lines:
             freq.append(i.split()) # column freqs
             # classes.append(i.split()[j]) # j num clase que quiero
 
         fnFsc.close()
 
-        plotter = EmPlotter(self, x, y, mainTitle, **kwargs)
-
-        # plotter = self._createPlot(title, FREQ_LABEL, plotLabel, md,
-        #                            xmippLib.MDL_RESOLUTION_FREQ, resolutionLabel,
-        #                            **kwargs)
-        # return [plotter, DataView(fscFn)]
+        plotter = EmPlotter(self, freq, classes[1], title, **kwargs) # cambiar indice clase
+        return [plotter, DataView(plotLabel)]
