@@ -74,13 +74,13 @@ class Xmipp2ProtMlTomoViewer(ProtocolViewer):
         fnFsc = open(self.protocol._getExtraPath("mltomo.fsc"),'r')
         lines = fnFsc.readlines()
         freq = []
-        # fnClasses = self.protocol._getExtraPath("Classes") # las clases que quiero son las q se han generado
-        classes = [] # j,i (j num classes, i num lineas)
+        # fnClasses = self.protocol._getExtraPath("Classes") # generated classes
+        classes = [] # j,i (j num classes, i num lines)
         for i in lines:
-            freq.append(i.split()) # column freqs
-            # classes.append(i.split()[j]) # j num clase que quiero
+            freq.append(i.split()) # column frecs
+            # classes.append(i.split()[j]) # j num class
 
         fnFsc.close()
 
-        plotter = EmPlotter(self, freq, classes[1], title, **kwargs) # cambiar indice clase
+        plotter = EmPlotter(self, freq, classes[1], title, **kwargs) # change class index
         return [plotter, DataView(plotLabel)]

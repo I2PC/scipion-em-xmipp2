@@ -25,4 +25,4 @@
 # *
 # **************************************************************************
 
-from .viewer_MlTomo import Xmipp2ProtMlTomoViewer
+# from .viewer_MlTomo import Xmipp2ProtMlTomoViewer

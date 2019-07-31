@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # **************************************************************************
 # *
-# * Authors:     Carlos Oscar Sanchez Sorzano
-# *              Estrella Fernandez Gimenez
+# * Authors:     Estrella Fernandez Gimenez
+# *              Carlos Oscar Sanchez Sorzano
 # *
 # *  BCU, Centro Nacional de Biotecnologia, CSIC
 # *
@@ -28,15 +28,16 @@
 # **************************************************************************
 
 import os
-from pyworkflow.em.convert import ImageHandler
-import pyworkflow.utils as pwutils
-from pyworkflow.utils.path import makePath
+import fnmatch
 from os.path import exists
 
-from tomo.protocols.protocol_base import ProtTomoSubtomogramAveraging
+from pyworkflow.em.data import Transform
+from pyworkflow.utils.path import makePath
 from pyworkflow.protocol.params import PointerParam, IntParam, StringParam, LEVEL_ADVANCED
-from xmipp2.convert import writeSetOfVolumes
 
+from tomo.objects import SubTomogram, AverageSubTomogram
+from tomo.protocols.protocol_base import ProtTomoSubtomogramAveraging
+from xmipp2.convert import writeSetOfVolumes
 
 
 class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
@@ -70,7 +71,7 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
     def _insertAllSteps(self):
         self._insertFunctionStep('convertInputStep')
         self._insertFunctionStep('runMLTomo')
-        #self._insertFunctionStep('createOutput')
+        self._insertFunctionStep('createOutput')
 
     #--------------------------- STEPS functions -------------------------------
     def convertInputStep(self):
@@ -83,11 +84,11 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
 
     def createFilesForMLTomo(self):
         mw = 0
-        if (self.inputVolumes.get().getFirstItem().getAcquisitionAngleMin()):
+        if (self.inputVolumes.get().getFirstItem().getAcquisition().getAngleMin()):
             mw = 1
             wedgeDict={}
             for subtomogram in self.inputVolumes.get():
-                key=(subtomogram.getAcquisitionAngleMin(),subtomogram.getAcquisitionAngleMax())
+                key=(subtomogram.getAcquisition().getAngleMin(),subtomogram.getAcquisition().getAngleMax())
                 if not key in wedgeDict:
                     wedgeDict[key]=[]
                 wedgeDict[key].append(subtomogram)
@@ -131,15 +132,78 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         self.runJob("xmipp_ml_tomo", args, numberOfMpi=self.numberOfMpi.get())
     
     def createOutput(self):
-        pass
+        directory = self._getExtraPath()
+        self._classesInfo = []
+        subtomoSet = self._createSetOfSubTomograms()
+        subtomoSet.setSamplingRate(self.inputVolumes.get().getSamplingRate())
+        referencesSet = self._createSetOfAverages()
+        referencesSet.setSamplingRate(self.inputVolumes.get().getSamplingRate())
+
+        for refId in range(0,self.numberOfReferences):
+            for filename in os.listdir(directory):
+                if fnmatch.fnmatch(filename, 'mltomo_it00000%d_ref00000%d.sel' % (self.numberOfIters,refId)):
+                    name = '%s/mltomo_it00000%d_ref00000%d.sel' % (directory,self.numberOfIters,refId)
+                    if not os.stat(name).st_size == 0:
+                        f = open(name)
+                        reference = AverageSubTomogram()
+                        reference.setFileName('%s/mltomo_ref00000%d.vol' % (directory, refId))
+                        reference.setClassId(refId)
+                        reference.setSamplingRate(self.inputVolumes.get().getSamplingRate())
+                        referencesSet.append(reference)
+                        if not refId in self._classesInfo:
+                            self._classesInfo.append(refId)
+                        for line in f:
+                            line = line.rstrip()
+                            fnSubtomo = line.split(None, 1)[0]
+                            subtomo = SubTomogram()
+                            subtomo.setFileName(fnSubtomo)
+                            subtomo.setSamplingRate(self.inputVolumes.get().getSamplingRate())
+                            subtomo.setClassId(refId)
+                            transform = Transform()
+                            subtomo.setTransform(transform)
+                            subtomoSet.append(subtomo)
+                            if not line:
+                                continue
+                    continue
+                else:
+                    continue
+
+        classesSubtomoSet = self._createSetOfClassesSubTomograms(subtomoSet)
+        classesSubtomoSet.classifyItems(updateClassCallback=self._updateClass)
+
+        self._defineOutputs(outputSubtomograms=subtomoSet)
+        self._defineSourceRelation(self.inputVolumes, subtomoSet)
+
+        self._defineOutputs(outputReferences=referencesSet)
+        self._defineSourceRelation(self.inputVolumes, referencesSet)
+
+        self._defineOutputs(outputClasses=classesSubtomoSet)
+        self._defineSourceRelation(self.inputVolumes, classesSubtomoSet)
+
 
     #--------------------------- INFO functions --------------------------------
+
     def _summary(self):
         summary = []
+        summary.append("%d subtomograms %s\n%d references requested\n%d refence/s generated in %d iters"
+                       % (len(self.inputVolumes.get()),self.getObjectTag('inputVolumes'),self.numberOfReferences,
+                       len(self.outputClasses.get()),self.numberOfIters))
         return summary
-
 
     def _methods(self):
         methods = []
-        methods.append(" ")
+        methods.append("%d reference/s generated from %d subtomograms %s"
+                        % (len(self.outputClasses.get()),len(self.inputVolumes.get()),self.getObjectTag('inputVolumes')))
         return methods
+
+    #--------------------------- UTILS functions ----------------------------------
+
+    def _updateClass(self, item):
+        classId = item.getObjId()
+        if classId in range(1,len(self._classesInfo)+1):
+            index= self._classesInfo[classId-1]
+            item.setAlignment3D()
+            directory = self._getExtraPath()
+            fn = ('%s/mltomo_ref00000%d.vol' % (directory, classId))
+            item.getRepresentative().setLocation(index,fn)
+

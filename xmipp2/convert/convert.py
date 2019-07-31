@@ -38,22 +38,6 @@ from pyworkflow.em.metadata import MetaData, MDL_XCOOR, MDL_YCOOR
 from pyworkflow.utils.path import replaceBaseExt, join, exists
 import xmippLib
 
-
-def readSetOfCoordinates(workDir, micSet, coordSet):
-    """ Read from Appion .txt files.
-    It is expected a file named: base.txt under the workDir.
-    Params:
-        workDir: where the Appion dogpicker output files are located.
-        micSet: the SetOfMicrographs to associate the .txt, which
-            name should be the same of the micrographs.
-        coordSet: the SetOfCoordinates that will be populated.
-    """
-
-    for mic in micSet:
-        micCoordFn = join(workDir, replaceBaseExt(mic.getFileName(), 'txt'))
-        readCoordinates(mic, micCoordFn, coordSet)
-
-
 def readCoordinates(mic, fileName, coordsSet):
     if exists(fileName):
          md = MetaData()
