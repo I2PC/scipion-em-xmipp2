@@ -32,13 +32,15 @@ from pyworkflow.em.viewers.viewers_data import DataViewer
 from pyworkflow.em.viewers.plotter import EmPlotter
 from pyworkflow.em.viewers.views import CtfView, ObjectView
 from pyworkflow.em.viewers.showj import *
-from pyworkflow.em.viewers.viewer_monitors import MovieGainMonitorPlotter
+from tomo.viewers.viewers_data import TomoDataViewer
 
 import xmippLib
 from xmipp2.convert import *
 from xmipp2.protocols.protocol_mltomo import Xmipp2ProtMLTomo
 import numpy as np
 
+import tomo.objects
+import tomo.viewers.views as v
 
 
 class XmippViewer(DataViewer):
@@ -83,6 +85,9 @@ class XmippViewer(DataViewer):
             #                               viewParams={OBJCMDS: objCommands},
             #                               **kwargs))
 
+        elif issubclass(cls, tomo.objects.SetOfClassesSubTomograms):
+            self._views.append(v.ClassesSubTomogramsView(self._project, obj.strId(),
+                                                   obj.getFileName()))
 
         else:
             # Use default visualization defined in base class

@@ -37,11 +37,15 @@ from pyworkflow.protocol.params import PointerParam, IntParam, StringParam, LEVE
 
 from tomo.objects import SubTomogram, AverageSubTomogram
 from tomo.protocols.protocol_base import ProtTomoSubtomogramAveraging
-from xmipp2.convert import writeSetOfVolumes
+from xmipp2.convert import writeSetOfVolumes, eulerAngles2matrix
 
 
 class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
-    """ Protocol to align subtomograms using MLTomo. It only supports alignment on the axis Y """
+    """ Protocol to align subtomograms using MLTomo. It only supports alignment on the axis Y.
+        MLTomo aligns and classifies 3D images with missing data regions in Fourier
+        space, e.g. subtomograms or RCT reconstructions, by a 3D
+        multi-reference refinement based on a maximum-likelihood (ML) target
+        function."""
 
     _label = 'mltomo'
 
@@ -132,13 +136,14 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         self.runJob("xmipp_ml_tomo", args, numberOfMpi=self.numberOfMpi.get())
     
     def createOutput(self):
+        self._cleanFiles()
         directory = self._getExtraPath()
         self._classesInfo = []
         subtomoSet = self._createSetOfSubTomograms()
         subtomoSet.setSamplingRate(self.inputVolumes.get().getSamplingRate())
-        referencesSet = self._createSetOfAverages()
-        referencesSet.setSamplingRate(self.inputVolumes.get().getSamplingRate())
-
+        self.referencesSet = self._createSetOfAverages()
+        self.referencesSet.setSamplingRate(self.inputVolumes.get().getSamplingRate())
+        fnDoc = '%s/mltomo_it00000%d.doc' % (directory,self.numberOfIters)
         for refId in range(0,self.numberOfReferences):
             for filename in os.listdir(directory):
                 if fnmatch.fnmatch(filename, 'mltomo_it00000%d_ref00000%d.sel' % (self.numberOfIters,refId)):
@@ -149,7 +154,7 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
                         reference.setFileName('%s/mltomo_ref00000%d.vol' % (directory, refId))
                         reference.setClassId(refId)
                         reference.setSamplingRate(self.inputVolumes.get().getSamplingRate())
-                        referencesSet.append(reference)
+                        self.referencesSet.append(reference)
                         if not refId in self._classesInfo:
                             self._classesInfo.append(refId)
                         for line in f:
@@ -160,50 +165,124 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
                             subtomo.setSamplingRate(self.inputVolumes.get().getSamplingRate())
                             subtomo.setClassId(refId)
                             transform = Transform()
+                            d = open(fnDoc)
+                            for dline in d:
+                                if fnSubtomo in dline:
+                                    nline = d.next()
+                                    nline = nline.rstrip()
+                                    rot = nline.split()[2]
+                                    tilt = nline.split()[3]
+                                    psi = nline.split()[4]
+                                    shiftx = nline.split()[5]
+                                    shifty = nline.split()[6]
+                                    shiftz = nline.split()[7]
+                            d.close()
+                            A = eulerAngles2matrix(rot, tilt, psi, shiftx, shifty, shiftz)
+                            transform.setMatrix(A)
                             subtomo.setTransform(transform)
                             subtomoSet.append(subtomo)
                             if not line:
                                 continue
+                        f.close()
                     continue
                 else:
                     continue
 
         classesSubtomoSet = self._createSetOfClassesSubTomograms(subtomoSet)
         classesSubtomoSet.classifyItems(updateClassCallback=self._updateClass)
-
         self._defineOutputs(outputSubtomograms=subtomoSet)
         self._defineSourceRelation(self.inputVolumes, subtomoSet)
-
-        self._defineOutputs(outputReferences=referencesSet)
-        self._defineSourceRelation(self.inputVolumes, referencesSet)
-
-        self._defineOutputs(outputClasses=classesSubtomoSet)
+        self._defineOutputs(outputClassesSubtomo=classesSubtomoSet)
         self._defineSourceRelation(self.inputVolumes, classesSubtomoSet)
-
 
     #--------------------------- INFO functions --------------------------------
 
     def _summary(self):
         summary = []
-        summary.append("%d subtomograms %s\n%d references requested\n%d refence/s generated in %d iters"
-                       % (len(self.inputVolumes.get()),self.getObjectTag('inputVolumes'),self.numberOfReferences,
-                       len(self.outputClasses.get()),self.numberOfIters))
+        if hasattr(self, 'outputClassesSubtomo'):
+            summary.append("Input subtomograms: *%d* \nRequested classes: *%d*\nGenerated classes: *%d* in *%d* iterations\n"
+                       % (self.inputVolumes.get().getSize(),self.numberOfReferences,
+                          self.outputClassesSubtomo.getSize(),self.numberOfIters))
+        else:
+            summary.append("Output classes not ready yet.")
         return summary
 
     def _methods(self):
         methods = []
-        methods.append("%d reference/s generated from %d subtomograms %s"
-                        % (len(self.outputClasses.get()),len(self.inputVolumes.get()),self.getObjectTag('inputVolumes')))
+        if hasattr(self, 'outputClassesSubtomo'):
+            methods.append('We classified %d subtomograms from %s into %d classes %s using *MLTomo*.'
+                       % (self.inputVolumes.get().getSize(),self.getObjectTag('inputVolumes'),
+                          self.outputClassesSubtomo.getSize(),self.getObjectTag('outputClassesSubtomo')))
+        else:
+            methods.append("Output classes not ready yet.")
         return methods
+
+    def _citations(self):
+        return ['Scheres2009c']
 
     #--------------------------- UTILS functions ----------------------------------
 
     def _updateClass(self, item):
         classId = item.getObjId()
-        if classId in range(1,len(self._classesInfo)+1):
-            index= self._classesInfo[classId-1]
+        if classId in self._classesInfo:
             item.setAlignment3D()
             directory = self._getExtraPath()
             fn = ('%s/mltomo_ref00000%d.vol' % (directory, classId))
-            item.getRepresentative().setLocation(index,fn)
+            item.getRepresentative().setLocation(classId,fn)
+
+    def _cleanFiles(self):
+        for iter in range(0, int(self.numberOfIters)+1):
+            os.remove(self._getExtraPath('mltomo_it00000%d.sel' % iter))
+            for ref in range(1, int(self.numberOfReferences)+1):
+                os.remove(self._getExtraPath('mltomo_it00000%d_ref00000%d.vol' % (iter, ref)))
+                os.remove(self._getExtraPath('mltomo_it00000%d_wedge00000%d.vol' % (iter, ref)))
+        for iter in range(1, int(self.numberOfIters)+1):
+            os.remove(self._getExtraPath('mltomo_it00000%d.fsc' % iter))
+
+        for ref in range(1, int(self.numberOfReferences) + 1):
+            if os.stat(self._getExtraPath('mltomo_it00000%d_ref00000%d.sel' % (self.numberOfIters, ref))).st_size == 0:
+                os.remove(self._getExtraPath('mltomo_it00000%d_ref00000%d.sel' % (self.numberOfIters, ref)))
+                os.remove(self._getExtraPath('mltomo_ref00000%d.vol' % (ref)))
+                continue
+            else:
+                continue
+
+        for iter in range(1, int(self.numberOfIters)):
+            os.remove(self._getExtraPath('mltomo_it00000%d.doc' % iter))
+            for ref in range(1, int(self.numberOfReferences) + 1):
+                os.remove(self._getExtraPath('mltomo_it00000%d_ref00000%d.sel' % (iter,ref)))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

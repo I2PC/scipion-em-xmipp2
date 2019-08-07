@@ -1,7 +1,6 @@
 # **************************************************************************
 # *
-# * Authors:  Laura del Cano (ldelcano@cnb.csic.es)
-# *           Yunior C. Fonseca Reyna (cfonseca@cnb.csic.es)
+# * Authors:  Estrella Fernandez Gimenez
 # *
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
@@ -27,32 +26,11 @@
 # **************************************************************************
 """
 This module contains converter functions that will serve to:
-1. Write from base classes to Appion specific files
-2. Read from Appion files to base classes
+1. Write from base classes to Xmipp2.4 specific files
+2. Read from Xmipp2.4 files to base classes
 """
-
+import numpy as np
 from pyworkflow.em.convert import ImageHandler
-from pyworkflow.em.data import Coordinate
-from pyworkflow.em.metadata import MetaData, MDL_XCOOR, MDL_YCOOR
-
-from pyworkflow.utils.path import replaceBaseExt, join, exists
-import xmippLib
-
-def readCoordinates(mic, fileName, coordsSet):
-    if exists(fileName):
-         md = MetaData()
-         md.readPlain(fileName, 'xcoor ycoor')
-         for objId in md:
-            x = md.getValue(MDL_XCOOR, objId)
-            y = md.getValue(MDL_YCOOR, objId)
-            coord = Coordinate()
-            coord.setPosition(x, y)
-            coord.setMicrograph(mic)
-            coordsSet.append(coord)
-
-
-def writeSetOfCoordinates():
-    pass
 
 
 def writeSetOfVolumes(setOfVolumes, outputFnRoot):
@@ -62,8 +40,49 @@ def writeSetOfVolumes(setOfVolumes, outputFnRoot):
         ih.convert(volume, "%s%06d.vol"%(outputFnRoot,i))
         i+=1
 
+def eulerAngles2matrix(alpha, beta, gamma, shiftx, shifty, shiftz):
+    A = np.empty([4,4])
+    A.fill(2)
+    A[3,3] = 1
+    A[3,0:3] = 0
 
+    shiftx = float(shiftx)
+    shifty = float(shifty)
+    shiftz = float(shiftz)
 
+    A[0,3] = shiftx
+    A[1,3] = shifty
+    A[2,3] = shiftz
+
+    alpha = float(alpha)
+    beta = float(beta)
+    gamma = float(gamma)
+
+    sa = np.sin(np.deg2rad(alpha))
+    ca = np.cos(np.deg2rad(alpha))
+    sb = np.sin(np.deg2rad(beta))
+    cb = np.cos(np.deg2rad(beta))
+    sg = np.sin(np.deg2rad(gamma))
+    cg = np.cos(np.deg2rad(gamma))
+
+    cc = cb * ca
+    cs = cb * sa
+    sc = sb * ca
+    ss = sb * sa
+
+    A[0,0] =  cg * cc - sg * sa
+    A[0,1] =  cg * cs + sg * ca
+    A[0,2] = -cg * sb
+    A[1,0] = -sg * cc - cg * sa
+    A[1,1] = -sg * cs + cg * ca
+    A[1,2] = sg * sb
+    A[2,0] = sc
+    A[2,1] = ss
+    A[2,2] = cb
+
+    # A = np.linalg.inv(A)
+
+    return A
 
 
 
