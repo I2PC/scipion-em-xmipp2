@@ -46,13 +46,9 @@ def eulerAngles2matrix(alpha, beta, gamma, shiftx, shifty, shiftz):
     A[3,3] = 1
     A[3,0:3] = 0
 
-    shiftx = float(shiftx)
-    shifty = float(shifty)
-    shiftz = float(shiftz)
-
-    A[0,3] = shiftx
-    A[1,3] = shifty
-    A[2,3] = shiftz
+    A[0,3] = float(shiftx)
+    A[1,3] = float(shifty)
+    A[2,3] = float(shiftz)
 
     alpha = float(alpha)
     beta = float(beta)
@@ -70,8 +66,8 @@ def eulerAngles2matrix(alpha, beta, gamma, shiftx, shifty, shiftz):
     sc = sb * ca
     ss = sb * sa
 
-    A[0,0] =  cg * cc - sg * sa
-    A[0,1] =  cg * cs + sg * ca
+    A[0,0] = cg * cc - sg * sa
+    A[0,1] = cg * cs + sg * ca
     A[0,2] = -cg * sb
     A[1,0] = -sg * cc - cg * sa
     A[1,1] = -sg * cs + cg * ca
@@ -80,27 +76,4 @@ def eulerAngles2matrix(alpha, beta, gamma, shiftx, shifty, shiftz):
     A[2,1] = ss
     A[2,2] = cb
 
-    # A = np.linalg.inv(A)
-
     return A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

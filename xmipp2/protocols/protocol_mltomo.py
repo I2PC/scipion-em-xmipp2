@@ -174,8 +174,14 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
                                     tilt = nline.split()[3]
                                     psi = nline.split()[4]
                                     shiftx = nline.split()[5]
+                                    if shiftx.startswith('-'): shiftx = shiftx[1:]
+                                    else: shiftx = '-' + shiftx
                                     shifty = nline.split()[6]
+                                    if shifty.startswith('-'): shifty = shifty[1:]
+                                    else: shifty = '-' + shifty
                                     shiftz = nline.split()[7]
+                                    if shiftz.startswith('-'): shiftz = shiftz[1:]
+                                    else: shiftz = '-' + shiftz
                             d.close()
                             A = eulerAngles2matrix(rot, tilt, psi, shiftx, shifty, shiftz)
                             transform.setMatrix(A)
@@ -251,38 +257,3 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
             os.remove(self._getExtraPath('mltomo_it00000%d.doc' % iter))
             for ref in range(1, int(self.numberOfReferences) + 1):
                 os.remove(self._getExtraPath('mltomo_it00000%d_ref00000%d.sel' % (iter,ref)))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
