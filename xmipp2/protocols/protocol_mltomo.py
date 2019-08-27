@@ -28,14 +28,13 @@
 # **************************************************************************
 
 import os
-import fnmatch
 from os.path import exists
 
 from pyworkflow.em.data import Transform
 from pyworkflow.utils.path import makePath
 from pyworkflow.protocol.params import PointerParam, IntParam, StringParam, LEVEL_ADVANCED
 
-from tomo.objects import SubTomogram, AverageSubTomogram
+from tomo.objects import AverageSubTomogram
 from tomo.protocols.protocol_base import ProtTomoSubtomogramAveraging
 from xmipp2.convert import writeSetOfVolumes, eulerAngles2matrix
 
@@ -104,7 +103,6 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
                 fhWedge.write("%d 2 %d %d\n" %(i,key[0],key[1]))
                 i+=1
             fhWedge.close()
-
         fhDoc = open(self._getExtraPath("subtomograms.doc"),'w')
         j = 1
         with open(self._getExtraPath("subtomograms.sel"),'r') as fhSel:
@@ -128,76 +126,25 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
                ' -ang ' + str(self.angularSampling.get()) + \
                ' -dim ' + str(self.downscDim.get()) + \
                ' ' + self.extraParams.get()
-
         fhWedge = self._getExtraPath("wedge.doc")
         if exists(fhWedge):
             args = args + ' -missing ' + fhWedge
-
         self.runJob("xmipp_ml_tomo", args, numberOfMpi=self.numberOfMpi.get())
     
     def createOutput(self):
         self._cleanFiles()
-        directory = self._getExtraPath()
         self._classesInfo = []
-        subtomoSet = self._createSetOfSubTomograms()
-        subtomoSet.setSamplingRate(self.inputVolumes.get().getSamplingRate())
-        self.referencesSet = self._createSetOfAverages()
-        self.referencesSet.setSamplingRate(self.inputVolumes.get().getSamplingRate())
-        fnDoc = '%s/mltomo_it00000%d.doc' % (directory,self.numberOfIters)
-        for refId in range(0,self.numberOfReferences):
-            for filename in os.listdir(directory):
-                if fnmatch.fnmatch(filename, 'mltomo_it00000%d_ref00000%d.sel' % (self.numberOfIters,refId)):
-                    name = '%s/mltomo_it00000%d_ref00000%d.sel' % (directory,self.numberOfIters,refId)
-                    if not os.stat(name).st_size == 0:
-                        f = open(name)
-                        reference = AverageSubTomogram()
-                        reference.setFileName('%s/mltomo_ref00000%d.vol' % (directory, refId))
-                        reference.setClassId(refId)
-                        reference.setSamplingRate(self.inputVolumes.get().getSamplingRate())
-                        self.referencesSet.append(reference)
-                        if not refId in self._classesInfo:
-                            self._classesInfo.append(refId)
-                        for line in f:
-                            line = line.rstrip()
-                            fnSubtomo = line.split(None, 1)[0]
-                            subtomo = SubTomogram()
-                            subtomo.setFileName(fnSubtomo)
-                            subtomo.setSamplingRate(self.inputVolumes.get().getSamplingRate())
-                            subtomo.setClassId(refId)
-                            transform = Transform()
-                            d = open(fnDoc)
-                            for dline in d:
-                                if fnSubtomo in dline:
-                                    nline = d.next()
-                                    nline = nline.rstrip()
-                                    rot = nline.split()[2]
-                                    tilt = nline.split()[3]
-                                    psi = nline.split()[4]
-                                    shiftx = nline.split()[5]
-                                    if shiftx.startswith('-'): shiftx = shiftx[1:]
-                                    else: shiftx = '-' + shiftx
-                                    shifty = nline.split()[6]
-                                    if shifty.startswith('-'): shifty = shifty[1:]
-                                    else: shifty = '-' + shifty
-                                    shiftz = nline.split()[7]
-                                    if shiftz.startswith('-'): shiftz = shiftz[1:]
-                                    else: shiftz = '-' + shiftz
-                            d.close()
-                            A = eulerAngles2matrix(rot, tilt, psi, shiftx, shifty, shiftz)
-                            transform.setMatrix(A)
-                            subtomo.setTransform(transform)
-                            subtomoSet.append(subtomo)
-                            if not line:
-                                continue
-                        f.close()
-                    continue
-                else:
-                    continue
-
-        classesSubtomoSet = self._createSetOfClassesSubTomograms(subtomoSet)
+        self.subtomoSet = self._createSetOfSubTomograms()
+        inputSet = self.inputVolumes.get()
+        self.subtomoSet.copyInfo(inputSet)
+        self.fnDoc = '%s/mltomo_it00000%d.doc' % (self._getExtraPath(),self.numberOfIters)
+        self.docFile = open(self.fnDoc)
+        self.subtomoSet.copyItems(inputSet, updateItemCallback=self._updateItem)
+        self.docFile.close()
+        classesSubtomoSet = self._createSetOfClassesSubTomograms(self.subtomoSet)
         classesSubtomoSet.classifyItems(updateClassCallback=self._updateClass)
-        self._defineOutputs(outputSubtomograms=subtomoSet)
-        self._defineSourceRelation(self.inputVolumes, subtomoSet)
+        self._defineOutputs(outputSubtomograms=self.subtomoSet)
+        self._defineSourceRelation(self.inputVolumes, self.subtomoSet)
         self._defineOutputs(outputClassesSubtomo=classesSubtomoSet)
         self._defineSourceRelation(self.inputVolumes, classesSubtomoSet)
 
@@ -228,13 +175,51 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
 
     #--------------------------- UTILS functions ----------------------------------
 
+    def _updateItem(self, item, row):
+        nline = self.docFile.next()
+        if nline.startswith(' ;'):
+            nline = self.docFile.next()
+        if nline.startswith(' ;'):
+            nline = self.docFile.next()
+        nline = nline.rstrip()
+        rot = nline.split()[2]
+        tilt = nline.split()[3]
+        psi = nline.split()[4]
+        shiftx = nline.split()[5]
+        if shiftx.startswith('-'):
+            shiftx = shiftx[1:]
+        else:
+            shiftx = '-' + shiftx
+        shifty = nline.split()[6]
+        if shifty.startswith('-'):
+            shifty = shifty[1:]
+        else:
+            shifty = '-' + shifty
+        shiftz = nline.split()[7]
+        if shiftz.startswith('-'):
+            shiftz = shiftz[1:]
+        else:
+            shiftz = '-' + shiftz
+        refId = float(nline.split()[8])
+        A = eulerAngles2matrix(rot, tilt, psi, shiftx, shifty, shiftz)
+        transform = Transform()
+        transform.setMatrix(A)
+        item.setTransform(transform)
+        item.setClassId(refId)
+        if not refId in self._classesInfo:
+            self._classesInfo.append(refId)
+
     def _updateClass(self, item):
         classId = item.getObjId()
-        if classId in self._classesInfo:
+        if float(classId) in self._classesInfo:
             item.setAlignment3D()
             directory = self._getExtraPath()
-            fn = ('%s/mltomo_ref00000%d.vol' % (directory, classId))
-            item.getRepresentative().setLocation(classId,fn)
+            fnRep = ('%s/mltomo_ref00000%d.vol' % (directory, classId))
+            representative = AverageSubTomogram()
+            representative.setLocation(1, fnRep)
+            representative.copyInfo(self.subtomoSet)
+            representative.setClassId(classId)
+            item.setRepresentative(representative)
 
     def _cleanFiles(self):
         for iter in range(0, int(self.numberOfIters)+1):
