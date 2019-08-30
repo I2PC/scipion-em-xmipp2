@@ -35,10 +35,9 @@ from pyworkflow.em.convert import ImageHandler
 
 def writeSetOfVolumes(setOfVolumes, outputFnRoot):
     ih = ImageHandler()
-    i = 1
     for volume in setOfVolumes:
+        i = volume.getObjId()
         ih.convert(volume, "%s%06d.vol"%(outputFnRoot,i))
-        i+=1
 
 def eulerAngles2matrix(alpha, beta, gamma, shiftx, shifty, shiftz):
     A = np.empty([4,4])

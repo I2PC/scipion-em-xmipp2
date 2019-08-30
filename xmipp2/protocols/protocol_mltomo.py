@@ -85,7 +85,66 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         self.fnSel= self._getExtraPath("subtomograms.sel")
         self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRoot,self.fnSel),numberOfMpi=1)
 
-    def createFilesForMLTomo(self):
+    def runMLTomo(self):
+        fnIn = self._getExtraPath("subtomograms.sel")
+        fnOut = self._getExtraPath("mltomo")
+        self._createFilesForMLTomo()
+        fhDoc = self._getExtraPath("subtomograms.doc")
+        args = ' -i ' + fnIn + \
+               ' -o ' + fnOut + \
+               ' -nref ' + str(self.numberOfReferences.get()) + \
+               ' -doc ' + fhDoc + \
+               ' -iter ' + str(self.numberOfIters.get()) + \
+               ' -ang ' + str(self.angularSampling.get()) + \
+               ' -dim ' + str(self.downscDim.get()) + \
+               ' ' + self.extraParams.get()
+        fhWedge = self._getExtraPath("wedge.doc")
+        if exists(fhWedge):
+            args = args + ' -missing ' + fhWedge
+        self.runJob("xmipp_ml_tomo", args, numberOfMpi=self.numberOfMpi.get())
+    
+    def createOutput(self):
+        self.subtomoSet = self._createSetOfSubTomograms()
+        inputSet = self.inputVolumes.get()
+        self.subtomoSet.copyInfo(inputSet)
+        self.fnDoc = '%s/mltomo_it00000%d.doc' % (self._getExtraPath(),self.numberOfIters)
+        self.docFile = open(self.fnDoc)
+        self.subtomoSet.copyItems(inputSet, updateItemCallback=self._updateItem)
+        self.docFile.close()
+        classesSubtomoSet = self._createSetOfClassesSubTomograms(self.subtomoSet)
+        classesSubtomoSet.classifyItems(updateClassCallback=self._updateClass)
+        self._defineOutputs(outputSubtomograms=self.subtomoSet)
+        self._defineSourceRelation(self.inputVolumes, self.subtomoSet)
+        self._defineOutputs(outputClassesSubtomo=classesSubtomoSet)
+        self._defineSourceRelation(self.inputVolumes, classesSubtomoSet)
+        self._cleanFiles()
+
+    #--------------------------- INFO functions --------------------------------
+    def _summary(self):
+        summary = []
+        if hasattr(self, 'outputClassesSubtomo'):
+            summary.append("Input subtomograms: *%d* \nRequested classes: *%d*\nGenerated classes: *%d* in *%d* iterations\n"
+                       % (self.inputVolumes.get().getSize(),self.numberOfReferences,
+                          self.outputClassesSubtomo.getSize(),self.numberOfIters))
+        else:
+            summary.append("Output classes not ready yet.")
+        return summary
+
+    def _methods(self):
+        methods = []
+        if hasattr(self, 'outputClassesSubtomo'):
+            methods.append('We classified %d subtomograms from %s into %d classes %s using *MLTomo*.'
+                       % (self.inputVolumes.get().getSize(),self.getObjectTag('inputVolumes'),
+                          self.outputClassesSubtomo.getSize(),self.getObjectTag('outputClassesSubtomo')))
+        else:
+            methods.append("Output classes not ready yet.")
+        return methods
+
+    def _citations(self):
+        return ['Scheres2009c']
+
+    #--------------------------- UTILS functions ----------------------------------
+    def _createFilesForMLTomo(self):
         mw = 0
         if (self.inputVolumes.get().getFirstItem().getAcquisition().getAngleMin()):
             mw = 1
@@ -113,68 +172,6 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         fhDoc.close()
         fhSel.close()
 
-    def runMLTomo(self):
-        fnIn = self._getExtraPath("subtomograms.sel")
-        fnOut = self._getExtraPath("mltomo")
-        self.createFilesForMLTomo()
-        fhDoc = self._getExtraPath("subtomograms.doc")
-        args = ' -i ' + fnIn + \
-               ' -o ' + fnOut + \
-               ' -nref ' + str(self.numberOfReferences.get()) + \
-               ' -doc ' + fhDoc + \
-               ' -iter ' + str(self.numberOfIters.get()) + \
-               ' -ang ' + str(self.angularSampling.get()) + \
-               ' -dim ' + str(self.downscDim.get()) + \
-               ' ' + self.extraParams.get()
-        fhWedge = self._getExtraPath("wedge.doc")
-        if exists(fhWedge):
-            args = args + ' -missing ' + fhWedge
-        self.runJob("xmipp_ml_tomo", args, numberOfMpi=self.numberOfMpi.get())
-    
-    def createOutput(self):
-        self._cleanFiles()
-        self._classesInfo = []
-        self.subtomoSet = self._createSetOfSubTomograms()
-        inputSet = self.inputVolumes.get()
-        self.subtomoSet.copyInfo(inputSet)
-        self.fnDoc = '%s/mltomo_it00000%d.doc' % (self._getExtraPath(),self.numberOfIters)
-        self.docFile = open(self.fnDoc)
-        self.subtomoSet.copyItems(inputSet, updateItemCallback=self._updateItem)
-        self.docFile.close()
-        classesSubtomoSet = self._createSetOfClassesSubTomograms(self.subtomoSet)
-        classesSubtomoSet.classifyItems(updateClassCallback=self._updateClass)
-        self._defineOutputs(outputSubtomograms=self.subtomoSet)
-        self._defineSourceRelation(self.inputVolumes, self.subtomoSet)
-        self._defineOutputs(outputClassesSubtomo=classesSubtomoSet)
-        self._defineSourceRelation(self.inputVolumes, classesSubtomoSet)
-
-    #--------------------------- INFO functions --------------------------------
-
-    def _summary(self):
-        summary = []
-        if hasattr(self, 'outputClassesSubtomo'):
-            summary.append("Input subtomograms: *%d* \nRequested classes: *%d*\nGenerated classes: *%d* in *%d* iterations\n"
-                       % (self.inputVolumes.get().getSize(),self.numberOfReferences,
-                          self.outputClassesSubtomo.getSize(),self.numberOfIters))
-        else:
-            summary.append("Output classes not ready yet.")
-        return summary
-
-    def _methods(self):
-        methods = []
-        if hasattr(self, 'outputClassesSubtomo'):
-            methods.append('We classified %d subtomograms from %s into %d classes %s using *MLTomo*.'
-                       % (self.inputVolumes.get().getSize(),self.getObjectTag('inputVolumes'),
-                          self.outputClassesSubtomo.getSize(),self.getObjectTag('outputClassesSubtomo')))
-        else:
-            methods.append("Output classes not ready yet.")
-        return methods
-
-    def _citations(self):
-        return ['Scheres2009c']
-
-    #--------------------------- UTILS functions ----------------------------------
-
     def _updateItem(self, item, row):
         nline = self.docFile.next()
         if nline.startswith(' ;'):
@@ -182,44 +179,43 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         if nline.startswith(' ;'):
             nline = self.docFile.next()
         nline = nline.rstrip()
-        rot = nline.split()[2]
-        tilt = nline.split()[3]
-        psi = nline.split()[4]
-        shiftx = nline.split()[5]
-        if shiftx.startswith('-'):
-            shiftx = shiftx[1:]
-        else:
-            shiftx = '-' + shiftx
-        shifty = nline.split()[6]
-        if shifty.startswith('-'):
-            shifty = shifty[1:]
-        else:
-            shifty = '-' + shifty
-        shiftz = nline.split()[7]
-        if shiftz.startswith('-'):
-            shiftz = shiftz[1:]
-        else:
-            shiftz = '-' + shiftz
-        refId = float(nline.split()[8])
-        A = eulerAngles2matrix(rot, tilt, psi, shiftx, shifty, shiftz)
-        transform = Transform()
-        transform.setMatrix(A)
-        item.setTransform(transform)
-        item.setClassId(refId)
-        if not refId in self._classesInfo:
-            self._classesInfo.append(refId)
+        id = int(nline.split()[0])
+        if (item.getObjId() == id):
+            rot = nline.split()[2]
+            tilt = nline.split()[3]
+            psi = nline.split()[4]
+            shiftx = nline.split()[5]
+            if shiftx.startswith('-'):
+                shiftx = shiftx[1:]
+            else:
+                shiftx = '-' + shiftx
+            shifty = nline.split()[6]
+            if shifty.startswith('-'):
+                shifty = shifty[1:]
+            else:
+                shifty = '-' + shifty
+            shiftz = nline.split()[7]
+            if shiftz.startswith('-'):
+                shiftz = shiftz[1:]
+            else:
+                shiftz = '-' + shiftz
+            refId = float(nline.split()[8])
+            A = eulerAngles2matrix(rot, tilt, psi, shiftx, shifty, shiftz)
+            transform = Transform()
+            transform.setMatrix(A)
+            item.setTransform(transform)
+            item.setClassId(refId)
 
     def _updateClass(self, item):
         classId = item.getObjId()
-        if float(classId) in self._classesInfo:
-            item.setAlignment3D()
-            directory = self._getExtraPath()
-            fnRep = ('%s/mltomo_ref00000%d.vol' % (directory, classId))
-            representative = AverageSubTomogram()
-            representative.setLocation(1, fnRep)
-            representative.copyInfo(self.subtomoSet)
-            representative.setClassId(classId)
-            item.setRepresentative(representative)
+        item.setAlignment3D()
+        directory = self._getExtraPath()
+        fnRep = ('%s/mltomo_ref00000%d.vol' % (directory, classId))
+        representative = AverageSubTomogram()
+        representative.setLocation(1, fnRep)
+        representative.copyInfo(self.subtomoSet)
+        representative.setClassId(classId)
+        item.setRepresentative(representative)
 
     def _cleanFiles(self):
         for iter in range(0, int(self.numberOfIters)+1):
@@ -237,7 +233,6 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
                 continue
             else:
                 continue
-
         for iter in range(1, int(self.numberOfIters)):
             os.remove(self._getExtraPath('mltomo_it00000%d.doc' % iter))
             for ref in range(1, int(self.numberOfReferences) + 1):
