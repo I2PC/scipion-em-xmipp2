@@ -107,7 +107,10 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         self.subtomoSet = self._createSetOfSubTomograms()
         inputSet = self.inputVolumes.get()
         self.subtomoSet.copyInfo(inputSet)
-        self.fnDoc = '%s/mltomo_it00000%d.doc' % (self._getExtraPath(),self.numberOfIters)
+        if self.numberOfIters < 10:
+            self.fnDoc = '%s/mltomo_it00000%d.doc' % (self._getExtraPath(),self.numberOfIters)
+        else:
+            self.fnDoc = '%s/mltomo_it0000%d.doc' % (self._getExtraPath(),self.numberOfIters)
         self.docFile = open(self.fnDoc)
         self.subtomoSet.copyItems(inputSet, updateItemCallback=self._updateItem)
         self.docFile.close()
@@ -117,7 +120,7 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         self._defineSourceRelation(self.inputVolumes, self.subtomoSet)
         self._defineOutputs(outputClassesSubtomo=classesSubtomoSet)
         self._defineSourceRelation(self.inputVolumes, classesSubtomoSet)
-        self._cleanFiles()
+        # self._cleanFiles()
 
     #--------------------------- INFO functions --------------------------------
     def _summary(self):
