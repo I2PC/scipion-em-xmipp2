@@ -32,6 +32,9 @@ This module contains converter functions that will serve to:
 import numpy as np
 from pyworkflow.em.convert import ImageHandler
 
+def writeVolume(volume, outputFn):
+    ih = ImageHandler()
+    ih.convert(volume, "%s" % outputFn)
 
 def writeSetOfVolumes(setOfVolumes, outputFnRoot):
     ih = ImageHandler()

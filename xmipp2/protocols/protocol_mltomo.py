@@ -32,11 +32,11 @@ from os.path import exists
 
 from pyworkflow.em.data import Transform
 from pyworkflow.utils.path import makePath
-from pyworkflow.protocol.params import PointerParam, IntParam, StringParam, LEVEL_ADVANCED
+from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, StringParam, LEVEL_ADVANCED
 
 from tomo.objects import AverageSubTomogram
 from tomo.protocols.protocol_base import ProtTomoSubtomogramAveraging
-from xmipp2.convert import writeSetOfVolumes, eulerAngles2matrix
+from xmipp2.convert import writeVolume, writeSetOfVolumes, eulerAngles2matrix
 
 
 class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
@@ -57,14 +57,24 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         form.addSection(label='Input subtomograms')
         form.addParam('inputVolumes', PointerParam, pointerClass="SetOfSubTomograms",
                       label='Set of volumes', help="Set of subtomograms to align with MLTomo")
+        form.addParam('randomInitialization', BooleanParam, default=True,
+                      label='Random initialization of classes:', help="Initialize randomly the first classes. If you "
+                           "don't initialize randomly, you must supply a set of initial classes")
+        form.addParam('initialClasses', PointerParam, label="Initial classes",
+                      condition="not randomInitialization", pointerClass='SetOfClassesSubTomograms',
+                      help='Set of initial classes to start the classification')
         form.addParam('numberOfReferences', IntParam, label='Number of references', default=10,
-                      help="Number of references to generate automatically")
+                      condition="randomInitialization", help="Number of references to generate automatically")
         form.addParam('numberOfIters', IntParam, label='Number of iterations', default=15,
                       help="Number of iterations to perform")
-        form.addParam('angularSampling', IntParam, label='Angular sampling rate', default=15,
-                      help="Angular sampling rate (in degrees)")
         form.addParam('downscDim', IntParam, label='Downscaled dimension', default=30,
                       help="Use downscaled (in fourier space) images of this size")
+        form.addParam('angularSampling', IntParam, label='Angular sampling rate', default=15,
+                      help="Angular sampling rate (in degrees)")
+        form.addParam('inputMask', PointerParam, label="Mask",
+                      allowsNull=True, pointerClass='VolumeMask',
+                      help='Optionally, select a mask. If a mask is used, the program will keep '
+                      'rotations and translations from docfile fixed, only classify')
         form.addParam('extraParams', StringParam, label='Extra parameters', default='-perturb -dont_impute',
                       expertLevel=LEVEL_ADVANCED,
                       help="Any of the parameters of the MLTomo (https://github.com/I2PC/xmipp-portal/wiki/Ml_tomo )")
@@ -84,20 +94,30 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         writeSetOfVolumes(self.inputVolumes.get(),fnRoot)
         self.fnSel= self._getExtraPath("subtomograms.sel")
         self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRoot,self.fnSel),numberOfMpi=1)
+        if self.initialClasses.get() is not None:
+            fnRootRef=os.path.join(fnDir,"reference")
+            writeSetOfVolumes(self.initialClasses.get().iterRepresentatives(),fnRootRef)
+            self.fnSelRef= self._getExtraPath("references.sel")
+            self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRootRef,self.fnSelRef),numberOfMpi=1)
+        if self.inputMask.get() is not None:
+            self.fnMask = os.path.join(fnDir, "mask.vol")
+            writeVolume(self.inputMask.get(), self.fnMask)
 
     def runMLTomo(self):
-        fnIn = self._getExtraPath("subtomograms.sel")
-        fnOut = self._getExtraPath("mltomo")
         self._createFilesForMLTomo()
-        fhDoc = self._getExtraPath("subtomograms.doc")
-        args = ' -i ' + fnIn + \
-               ' -o ' + fnOut + \
-               ' -nref ' + str(self.numberOfReferences.get()) + \
-               ' -doc ' + fhDoc + \
+        args = ' -i ' + self._getExtraPath("subtomograms.sel") + \
+               ' -o ' + self._getExtraPath("mltomo") + \
+               ' -doc ' + self._getExtraPath("subtomograms.doc") + \
                ' -iter ' + str(self.numberOfIters.get()) + \
                ' -ang ' + str(self.angularSampling.get()) + \
                ' -dim ' + str(self.downscDim.get()) + \
                ' ' + self.extraParams.get()
+        if self.initialClasses.get() is not None:
+            args = args + ' -ref ' + self.fnSelRef
+        else:
+            args = args + ' -nref ' + str(self.numberOfReferences.get())
+        if self.inputMask.get() is not None:
+            args = args + ' -mask ' + self.fnMask + ' -dont_align'
         fhWedge = self._getExtraPath("wedge.doc")
         if exists(fhWedge):
             args = args + ' -missing ' + fhWedge
