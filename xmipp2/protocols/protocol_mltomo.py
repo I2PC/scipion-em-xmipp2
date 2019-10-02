@@ -30,13 +30,12 @@
 import os
 from os.path import exists
 
-from pyworkflow.em.data import Transform
 from pyworkflow.utils.path import makePath
 from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, StringParam, LEVEL_ADVANCED
 
 from tomo.objects import AverageSubTomogram
 from tomo.protocols.protocol_base import ProtTomoSubtomogramAveraging
-from xmipp2.convert import writeVolume, writeSetOfVolumes, eulerAngles2matrix
+from xmipp2.convert import writeVolume, writeSetOfVolumes, readDocfile, writeDocfile
 
 
 class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
@@ -122,7 +121,7 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         if exists(fhWedge):
             args = args + ' -missing ' + fhWedge
         self.runJob("xmipp_ml_tomo", args, numberOfMpi=self.numberOfMpi.get())
-    
+
     def createOutput(self):
         self.subtomoSet = self._createSetOfSubTomograms()
         inputSet = self.inputVolumes.get()
@@ -164,20 +163,20 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         return methods
 
     def _citations(self):
-        return ['Scheres2009c']
+        return ['Scheres ea. (2009) Structure, 17, 1563-1572']
 
     #--------------------------- UTILS functions ----------------------------------
     def _createFilesForMLTomo(self):
+        inputVols = self.inputVolumes.get()
         mw = 0
-        if (self.inputVolumes.get().getFirstItem().getAcquisition().getAngleMin()):
+        if (inputVols.getFirstItem().getAcquisition().getAngleMin()):
             mw = 1
             wedgeDict={}
-            for subtomogram in self.inputVolumes.get():
+            for subtomogram in inputVols:
                 key=(subtomogram.getAcquisition().getAngleMin(),subtomogram.getAcquisition().getAngleMax())
                 if not key in wedgeDict:
                     wedgeDict[key]=[]
                 wedgeDict[key].append(subtomogram)
-
             fhWedge = open(self._getExtraPath("wedge.doc"),'w')
             fhWedge.write(" ; Wedgeinfo\n ; wedge_y\n")
             i=1
@@ -185,49 +184,24 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
                 fhWedge.write("%d 2 %d %d\n" %(i,key[0],key[1]))
                 i+=1
             fhWedge.close()
+
         fhDoc = open(self._getExtraPath("subtomograms.doc"),'w')
-        j = 1
-        with open(self._getExtraPath("subtomograms.sel"),'r') as fhSel:
+        fhSel = open(self._getExtraPath("subtomograms.sel"),'r')
+
+        if inputVols.getFirstItem().getTransform() is None:
+            j = 1
             for line in fhSel:
                 imgName = line.split()[0]
                 fhDoc.write(" ; %s\n%d 10  0 0 0 0 0 0 0 %d 0 0\n" %(imgName,j,mw))
                 j+=1
+        else:
+            writeDocfile(self,fhSel, fhDoc, inputVols, mw)
+
         fhDoc.close()
         fhSel.close()
 
     def _updateItem(self, item, row):
-        nline = self.docFile.next()
-        if nline.startswith(' ;'):
-            nline = self.docFile.next()
-        if nline.startswith(' ;'):
-            nline = self.docFile.next()
-        nline = nline.rstrip()
-        id = int(nline.split()[0])
-        if (item.getObjId() == id):
-            rot = nline.split()[2]
-            tilt = nline.split()[3]
-            psi = nline.split()[4]
-            shiftx = nline.split()[5]
-            if shiftx.startswith('-'):
-                shiftx = shiftx[1:]
-            else:
-                shiftx = '-' + shiftx
-            shifty = nline.split()[6]
-            if shifty.startswith('-'):
-                shifty = shifty[1:]
-            else:
-                shifty = '-' + shifty
-            shiftz = nline.split()[7]
-            if shiftz.startswith('-'):
-                shiftz = shiftz[1:]
-            else:
-                shiftz = '-' + shiftz
-            refId = float(nline.split()[8])
-            A = eulerAngles2matrix(rot, tilt, psi, shiftx, shifty, shiftz)
-            transform = Transform()
-            transform.setMatrix(A)
-            item.setTransform(transform)
-            item.setClassId(refId)
+        readDocfile(self, item)
 
     def _updateClass(self, item):
         classId = item.getObjId()
