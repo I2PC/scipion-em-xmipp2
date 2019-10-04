@@ -59,8 +59,8 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         form.addParam('randomInitialization', BooleanParam, default=True,
                       label='Random initialization of classes:', help="Initialize randomly the first classes. If you "
                            "don't initialize randomly, you must supply a set of initial classes")
-        form.addParam('initialRef', PointerParam, label="Initial reference",
-                      condition="not randomInitialization", pointerClass='AverageSubTomogram',
+        form.addParam('initialRef', PointerParam, label="Initial references",
+                      condition="not randomInitialization", pointerClass='SetOfClassesSubTomograms',
                       help='Set of initial classes to start the classification')
         form.addParam('numberOfReferences', IntParam, label='Number of references', default=10,
                       condition="randomInitialization", help="Number of references to generate automatically")
@@ -96,8 +96,7 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         if self.initialRef.get() is not None:
             fnRootRef=os.path.join(fnDir,"reference")
             writeSetOfVolumes(self.initialRef.get().iterRepresentatives(),fnRootRef)
-            self.fnSelRef= self._getExtraPath("references.sel")
-            self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRootRef,self.fnSelRef),numberOfMpi=1)
+            self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRootRef,self._getExtraPath("references.sel")),numberOfMpi=1)
         if self.inputMask.get() is not None:
             self.fnMask = os.path.join(fnDir, "mask.vol")
             writeVolume(self.inputMask.get(), self.fnMask)
@@ -112,7 +111,7 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
                ' -dim ' + str(self.downscDim.get()) + \
                ' ' + self.extraParams.get()
         if self.initialRef.get() is not None:
-            args = args + ' -ref ' + self.fnSelRef
+            args = args + ' -ref ' + self._getExtraPath("references.sel")
         else:
             args = args + ' -nref ' + str(self.numberOfReferences.get())
         if self.inputMask.get() is not None:
