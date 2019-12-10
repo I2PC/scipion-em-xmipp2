@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 # **************************************************************************
 # *
-# * Authors:     Estrella Fernandez Gimenez
-# *              Carlos Oscar Sanchez Sorzano
+# * Authors:     Estrella Fernandez Gimenez (me.fernandez@cnb.csic.es)
 # *
 # *  BCU, Centro Nacional de Biotecnologia, CSIC
 # *
@@ -29,14 +28,13 @@
 
 import os
 from os.path import exists
-
-from pyworkflow.em.data import Transform
+from pyworkflow.em.data import SetOfVolumes
 from pyworkflow.utils.path import makePath
-from pyworkflow.protocol.params import PointerParam, IntParam, StringParam, LEVEL_ADVANCED
+from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, StringParam, LEVEL_ADVANCED
 
 from tomo.objects import AverageSubTomogram
 from tomo.protocols.protocol_base import ProtTomoSubtomogramAveraging
-from xmipp2.convert import writeSetOfVolumes, eulerAngles2matrix
+from xmipp2.convert import writeVolume, writeSetOfVolumes, readDocfile, writeDocfile
 
 
 class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
@@ -54,17 +52,27 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
 
     #--------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
-        form.addSection(label='Input subtomograms')
-        form.addParam('inputVolumes', PointerParam, pointerClass="SetOfSubTomograms",
+        form.addSection(label='Input volumes')
+        form.addParam('inputVolumes', PointerParam, pointerClass="SetOfSubTomograms, SetOfVolumes",
                       label='Set of volumes', help="Set of subtomograms to align with MLTomo")
+        form.addParam('randomInitialization', BooleanParam, default=True,
+                      label='Random initialization of classes:', help="Initialize randomly the first classes. If you "
+                           "don't initialize randomly, you must supply a set of initial classes")
+        form.addParam('initialRef', PointerParam, label="Initial references",
+                      condition="not randomInitialization", pointerClass='SetOfClassesSubTomograms, SetOfVolumes',
+                      help='Set of initial classes to start the classification')
         form.addParam('numberOfReferences', IntParam, label='Number of references', default=10,
-                      help="Number of references to generate automatically")
+                      condition="randomInitialization", help="Number of references to generate automatically")
         form.addParam('numberOfIters', IntParam, label='Number of iterations', default=15,
                       help="Number of iterations to perform")
         form.addParam('angularSampling', IntParam, label='Angular sampling rate', default=15,
                       help="Angular sampling rate (in degrees)")
-        form.addParam('downscDim', IntParam, label='Downscaled dimension', default=30,
+        form.addParam('downscDim', IntParam, label='Downscaled dimension', expertLevel=LEVEL_ADVANCED, allowsNull=True,
                       help="Use downscaled (in fourier space) images of this size")
+        form.addParam('inputMask', PointerParam, label="Mask",
+                      allowsNull=True, pointerClass='VolumeMask',
+                      help='Optionally, select a mask. If a mask is used, the program will keep '
+                      'rotations and translations from docfile fixed, only classify')
         form.addParam('extraParams', StringParam, label='Extra parameters', default='-perturb -dont_impute',
                       expertLevel=LEVEL_ADVANCED,
                       help="Any of the parameters of the MLTomo (https://github.com/I2PC/xmipp-portal/wiki/Ml_tomo )")
@@ -84,25 +92,38 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         writeSetOfVolumes(self.inputVolumes.get(),fnRoot)
         self.fnSel= self._getExtraPath("subtomograms.sel")
         self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRoot,self.fnSel),numberOfMpi=1)
+        if self.initialRef.get() is not None:
+            fnRootRef = os.path.join(fnDir, "reference")
+            if isinstance(self.initialRef.get(), SetOfVolumes):
+                writeSetOfVolumes(self.initialRef.get(),fnRootRef)
+            else:
+                writeSetOfVolumes(self.initialRef.get().iterRepresentatives(),fnRootRef)
+            self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRootRef,self._getExtraPath("references.sel")),numberOfMpi=1)
+        if self.inputMask.get() is not None:
+            self.fnMask = os.path.join(fnDir, "mask.vol")
+            writeVolume(self.inputMask.get(), self.fnMask)
 
     def runMLTomo(self):
-        fnIn = self._getExtraPath("subtomograms.sel")
-        fnOut = self._getExtraPath("mltomo")
         self._createFilesForMLTomo()
-        fhDoc = self._getExtraPath("subtomograms.doc")
-        args = ' -i ' + fnIn + \
-               ' -o ' + fnOut + \
-               ' -nref ' + str(self.numberOfReferences.get()) + \
-               ' -doc ' + fhDoc + \
+        args = ' -i ' + self._getExtraPath("subtomograms.sel") + \
+               ' -o ' + self._getExtraPath("mltomo") + \
+               ' -doc ' + self._getExtraPath("subtomograms.doc") + \
                ' -iter ' + str(self.numberOfIters.get()) + \
                ' -ang ' + str(self.angularSampling.get()) + \
-               ' -dim ' + str(self.downscDim.get()) + \
                ' ' + self.extraParams.get()
+        if self.downscDim.get() is not None:
+            args = args + ' -dim ' + str(self.downscDim.get())
+        if self.initialRef.get() is not None:
+            args = args + ' -ref ' + self._getExtraPath("references.sel")
+        else:
+            args = args + ' -nref ' + str(self.numberOfReferences.get())
+        if self.inputMask.get() is not None:
+            args = args + ' -mask ' + self.fnMask + ' -dont_align'
         fhWedge = self._getExtraPath("wedge.doc")
         if exists(fhWedge):
             args = args + ' -missing ' + fhWedge
         self.runJob("xmipp_ml_tomo", args, numberOfMpi=self.numberOfMpi.get())
-    
+
     def createOutput(self):
         self.subtomoSet = self._createSetOfSubTomograms()
         inputSet = self.inputVolumes.get()
@@ -120,7 +141,7 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         self._defineSourceRelation(self.inputVolumes, self.subtomoSet)
         self._defineOutputs(outputClassesSubtomo=classesSubtomoSet)
         self._defineSourceRelation(self.inputVolumes, classesSubtomoSet)
-        # self._cleanFiles()
+        # self._cleanFiles() # User prefers to keep all files generated by MLTomo
 
     #--------------------------- INFO functions --------------------------------
     def _summary(self):
@@ -148,16 +169,22 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
 
     #--------------------------- UTILS functions ----------------------------------
     def _createFilesForMLTomo(self):
+        inputVols = self.inputVolumes.get()
         mw = 0
-        if (self.inputVolumes.get().getFirstItem().getAcquisition().getAngleMin()):
+        if isinstance(inputVols, SetOfVolumes):
+            mw = 1
+            fhWedge = open(self._getExtraPath("wedge.doc"), 'w')
+            fhWedge.write(" ; Wedgeinfo\n ; wedge_y\n")
+            fhWedge.write("1 2 -90 90\n")
+            fhWedge.close()
+        elif (inputVols.getFirstItem().getAcquisition().getAngleMin()):
             mw = 1
             wedgeDict={}
-            for subtomogram in self.inputVolumes.get():
+            for subtomogram in inputVols:
                 key=(subtomogram.getAcquisition().getAngleMin(),subtomogram.getAcquisition().getAngleMax())
                 if not key in wedgeDict:
                     wedgeDict[key]=[]
                 wedgeDict[key].append(subtomogram)
-
             fhWedge = open(self._getExtraPath("wedge.doc"),'w')
             fhWedge.write(" ; Wedgeinfo\n ; wedge_y\n")
             i=1
@@ -165,49 +192,26 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
                 fhWedge.write("%d 2 %d %d\n" %(i,key[0],key[1]))
                 i+=1
             fhWedge.close()
+
         fhDoc = open(self._getExtraPath("subtomograms.doc"),'w')
-        j = 1
-        with open(self._getExtraPath("subtomograms.sel"),'r') as fhSel:
+        fhSel = open(self._getExtraPath("subtomograms.sel"),'r')
+
+        if inputVols.getFirstItem().getTransform() is None:
+            j = 1
+            fhDoc.write(" ; Headerinfo columns: rot (1), tilt (2), psi (3), Xoff (4), Yoff (5), Zoff (6), Ref (7), Wedge (8), "
+                "Pmax/sumP (9), LL (10)\n")
             for line in fhSel:
                 imgName = line.split()[0]
                 fhDoc.write(" ; %s\n%d 10  0 0 0 0 0 0 0 %d 0 0\n" %(imgName,j,mw))
                 j+=1
+        else:
+            writeDocfile(self,fhSel, fhDoc, inputVols, mw)
+
         fhDoc.close()
         fhSel.close()
 
     def _updateItem(self, item, row):
-        nline = self.docFile.next()
-        if nline.startswith(' ;'):
-            nline = self.docFile.next()
-        if nline.startswith(' ;'):
-            nline = self.docFile.next()
-        nline = nline.rstrip()
-        id = int(nline.split()[0])
-        if (item.getObjId() == id):
-            rot = nline.split()[2]
-            tilt = nline.split()[3]
-            psi = nline.split()[4]
-            shiftx = nline.split()[5]
-            if shiftx.startswith('-'):
-                shiftx = shiftx[1:]
-            else:
-                shiftx = '-' + shiftx
-            shifty = nline.split()[6]
-            if shifty.startswith('-'):
-                shifty = shifty[1:]
-            else:
-                shifty = '-' + shifty
-            shiftz = nline.split()[7]
-            if shiftz.startswith('-'):
-                shiftz = shiftz[1:]
-            else:
-                shiftz = '-' + shiftz
-            refId = float(nline.split()[8])
-            A = eulerAngles2matrix(rot, tilt, psi, shiftx, shifty, shiftz)
-            transform = Transform()
-            transform.setMatrix(A)
-            item.setTransform(transform)
-            item.setClassId(refId)
+        readDocfile(self, item)
 
     def _updateClass(self, item):
         classId = item.getObjId()
