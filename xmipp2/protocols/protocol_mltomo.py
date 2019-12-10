@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 # **************************************************************************
 # *
-# * Authors:     Estrella Fernandez Gimenez
-# *              Carlos Oscar Sanchez Sorzano
+# * Authors:     Estrella Fernandez Gimenez (me.fernandez@cnb.csic.es)
 # *
 # *  BCU, Centro Nacional de Biotecnologia, CSIC
 # *
@@ -166,7 +165,7 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         return methods
 
     def _citations(self):
-        return ['Scheres ea. (2009) Structure, 17, 1563-1572']
+        return ['Scheres2009c']
 
     #--------------------------- UTILS functions ----------------------------------
     def _createFilesForMLTomo(self):

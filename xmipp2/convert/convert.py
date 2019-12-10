@@ -1,7 +1,6 @@
 # **************************************************************************
 # *
-# * Authors:  Estrella Fernandez Gimenez
-# *
+# * Authors:  Estrella Fernandez Gimenez (me.fernandez@cnb.csic.es)
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -140,8 +139,6 @@ def readDocfile(self, item):
         item.setClassId(refId)
 
 def writeDocfile(self, fhSel, fhDoc, volumes, wedge):
-    import time
-    time.sleep(10)
     fhDoc.write(" ; Headerinfo columns: rot (1), tilt (2), psi (3), Xoff (4), Yoff (5), Zoff (6), Ref (7), Wedge (8), "
                 "Pmax/sumP (9), LL (10)\n")
     for line in fhSel:
