@@ -201,7 +201,7 @@ class KendersomBaseClassify(ProtClassify2D):
         return messages
 
 
-class XmippProtKerdensom(KendersomBaseClassify):
+class Xmipp2ProtKerdensom(KendersomBaseClassify):
     """
     Classifies a set of images using  Kohonen's Self-Organizing Feature Maps (SOM)
     and Fuzzy c-means clustering technique (FCM) .
@@ -236,13 +236,13 @@ class XmippProtKerdensom(KendersomBaseClassify):
         if self.useMask:
             args += ' --mask binary_file %(mask)s'
 
-        self._insertRunJobStep("xmipp_image_vectorize", args % self._params)
+        # self._insertRunJobStep("xmipp_image_vectorize", args % self._params)
 
     def _insertVectorToImgStep(self):
         args = ' -i %(kvectors)s -o %(classes)s'
         if self.useMask:
             args += ' --mask binary_file %(mask)s'
-        self._insertRunJobStep("xmipp_image_vectorize", args % self._params)
+        # self._insertRunJobStep("xmipp_image_vectorize", args % self._params)
 
     # --------------------------- INFO functions ----------------------------------------------------
     def _validate(self):

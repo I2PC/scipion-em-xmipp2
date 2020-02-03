@@ -26,3 +26,4 @@
 # **************************************************************************
 
 from .protocol_mltomo import Xmipp2ProtMLTomo
+from .protocol_kendersom import Xmipp2ProtKerdensom

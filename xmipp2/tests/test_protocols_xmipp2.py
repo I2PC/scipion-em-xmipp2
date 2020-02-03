@@ -27,7 +27,7 @@
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.protocols import ProtImportSubTomograms
 from tomo.tests import DataSet
-from xmipp2.protocols import Xmipp2ProtMLTomo
+from xmipp2.protocols import Xmipp2ProtMLTomo, Xmipp2ProtKerdensom
 
 
 class TestXmipp2Mltomo(BaseTest):
@@ -68,3 +68,39 @@ class TestXmipp2Mltomo(BaseTest):
         self.assertTrue(outputClasses)
         self.assertTrue(outputClasses.hasRepresentatives())
         return protMltomo
+
+class TestXmippKerdensom(BaseTest):
+    """This class check if the protocol to calculate the kerdensom from particles in Xmipp works properly."""
+    @classmethod
+    def setData(cls, dataProject='xmipp_tutorial'):
+        cls.dataset = DataSet.getDataSet(dataProject)
+        cls.particlesFn = cls.dataset.getFile('particles')
+        cls.particlesDir = cls.dataset.getFile('particlesDir')
+        cls.volumesFn = cls.dataset.getFile('volumes')
+        cls.volumesDir = cls.dataset.getFile('volumesDir')
+        cls.averagesFn = cls.dataset.getFile('averages')
+        cls.averagesDir = cls.dataset.getFile('averagesDir')
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+        BaseTest.setData('mda')
+        cls.protImport = cls.runImportParticles(cls.particlesFn, 3.5)
+        cls.align2D = cls.runCL2DAlign(cls.protImport.outputParticles)
+
+    def test_kerdensom(self):
+        print("Run Kerdensom")
+        xmippProtKerdensom = self.newProtocol(Xmipp2ProtKerdensom, SomXdim=2, SomYdim=2)
+        xmippProtKerdensom.inputParticles.set(self.align2D.outputParticles)
+        self.launchProtocol(xmippProtKerdensom)
+        self.assertIsNotNone(xmippProtKerdensom.outputClasses, "There was a problem with Kerdensom")
+
+    def test_kerdensomMask(self):
+        print("Run Kerdensom with a mask")
+        protMask = self.runCreateMask(3.5, 100)
+        xmippProtKerdensom = self.newProtocol(Xmipp2ProtKerdensom, SomXdim=2, SomYdim=2)
+        xmippProtKerdensom.inputParticles.set(self.align2D.outputParticles)
+        xmippProtKerdensom.useMask.set(True)
+        xmippProtKerdensom.Mask.set(protMask.outputMask)
+        self.launchProtocol(xmippProtKerdensom)
+        self.assertIsNotNone(xmippProtKerdensom.outputClasses, "There was a problem with Kerdensom")
