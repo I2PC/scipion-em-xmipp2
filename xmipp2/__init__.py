@@ -28,12 +28,12 @@
 This package contains the protocols and data for xmipp 2.4
 """
 import os
-import pyworkflow.em
-
+import pwem
 from pyworkflow.utils import Environ
 from .constants import XMIPP2_HOME
 
-class Plugin(pyworkflow.em.Plugin):
+
+class Plugin(pwem.Plugin):
     _homeVar = XMIPP2_HOME
     _pathVars = [XMIPP2_HOME]
 
@@ -68,25 +68,22 @@ class Plugin(pyworkflow.em.Plugin):
                        default=True)
 
 
-pyworkflow.em.Domain.registerPlugin(__name__)
-
-
-@classmethod
-def defineBinaries(cls, env):
-    """ Define the Xmipp binaries/source available tgz.
-    """
-    scons = tryAddPipModule(env, 'scons', '3.0.4', default=True)
-
-def tryAddPipModule(env, moduleName, *args, **kwargs):
-    """ To try to add certain pipModule.
-        If it fails due to it is already add by other plugin or Scipion,
-          just returns its name to use it as a dependency.
-        Raise the exception if unknown error is gotten.
-    """
-    try:
-        return env.addPipModule(moduleName, *args, **kwargs)._name
-    except Exception as e:
-        if "Duplicated target '%s'" % moduleName == str(e):
-            return moduleName
-        else:
-            raise Exception(e)
+# @classmethod
+# def defineBinaries(cls, env):
+#     """ Define the Xmipp binaries/source available tgz.
+#     """
+#     scons = tryAddPipModule(env, 'scons', '3.0.4', default=True)
+#
+# def tryAddPipModule(env, moduleName, *args, **kwargs):
+#     """ To try to add certain pipModule.
+#         If it fails due to it is already add by other plugin or Scipion,
+#           just returns its name to use it as a dependency.
+#         Raise the exception if unknown error is gotten.
+#     """
+#     try:
+#         return env.addPipModule(moduleName, *args, **kwargs)._name
+#     except Exception as e:
+#         if "Duplicated target '%s'" % moduleName == str(e):
+#             return moduleName
+#         else:
+#             raise Exception(e)

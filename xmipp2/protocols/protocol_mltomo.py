@@ -29,13 +29,18 @@
 
 import os
 from os.path import exists
-
-from pyworkflow.em.data import Transform
+from pwem import Domain
+from pwem.objects import Transform
 from pyworkflow.utils.path import makePath
 from pyworkflow.protocol.params import PointerParam, IntParam, StringParam, LEVEL_ADVANCED
 
-from tomo.objects import AverageSubTomogram
-from tomo.protocols.protocol_base import ProtTomoSubtomogramAveraging
+AverageSubTomogram = Domain.importFromPlugin('tomo.objects', 'AverageSubTomogram',
+                                             doRaise=True)
+ProtTomoSubtomogramAveraging = Domain.importFromPlugin('tomo.protocols.protocol_base',
+                                                       'ProtTomoSubtomogramAveraging')
+ProtImportCoordinates3D = Domain.importFromPlugin("tomo.protocols",
+                                                  "ProtImportCoordinates3D",
+                                                  doRaise=True)
 from xmipp2.convert import writeSetOfVolumes, eulerAngles2matrix
 
 
@@ -90,14 +95,14 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         fnOut = self._getExtraPath("mltomo")
         self._createFilesForMLTomo()
         fhDoc = self._getExtraPath("subtomograms.doc")
-        args = ' -i ' + fnIn + \
-               ' -o ' + fnOut + \
-               ' -nref ' + str(self.numberOfReferences.get()) + \
-               ' -doc ' + fhDoc + \
-               ' -iter ' + str(self.numberOfIters.get()) + \
-               ' -ang ' + str(self.angularSampling.get()) + \
-               ' -dim ' + str(self.downscDim.get()) + \
-               ' ' + self.extraParams.get()
+        args = (' -i ' + fnIn +
+               ' -o ' + fnOut +
+               ' -nref ' + str(self.numberOfReferences.get()) +
+               ' -doc ' + fhDoc +
+               ' -iter ' + str(self.numberOfIters.get()) +
+               ' -ang ' + str(self.angularSampling.get()) +
+               ' -dim ' + str(self.downscDim.get()) +
+               ' ' + self.extraParams.get())
         fhWedge = self._getExtraPath("wedge.doc")
         if exists(fhWedge):
             args = args + ' -missing ' + fhWedge

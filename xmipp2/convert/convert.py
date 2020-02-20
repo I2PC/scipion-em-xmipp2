@@ -30,7 +30,7 @@ This module contains converter functions that will serve to:
 2. Read from Xmipp2.4 files to base classes
 """
 import numpy as np
-from pyworkflow.em.convert import ImageHandler
+from pwem.emlib.image import ImageHandler
 
 
 def writeSetOfVolumes(setOfVolumes, outputFnRoot):
