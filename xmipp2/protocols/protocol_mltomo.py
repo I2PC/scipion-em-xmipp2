@@ -178,11 +178,11 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         fhSel.close()
 
     def _updateItem(self, item, row):
-        nline = self.docFile.next()
+        nline = next(self.docFile)
         if nline.startswith(' ;'):
-            nline = self.docFile.next()
+            nline = next(self.docFile)
         if nline.startswith(' ;'):
-            nline = self.docFile.next()
+            nline = next(self.docFile)
         nline = nline.rstrip()
         id = int(nline.split()[0])
         if (item.getObjId() == id):
