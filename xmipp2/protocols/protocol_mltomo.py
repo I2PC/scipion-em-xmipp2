@@ -28,11 +28,11 @@
 
 import os
 from os.path import exists
-from pyworkflow.em.data import SetOfVolumes
+from pyworkflow.em.data import SetOfVolumes, Volume
 from pyworkflow.utils.path import makePath
 from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, StringParam, LEVEL_ADVANCED
 
-from tomo.objects import AverageSubTomogram
+from tomo.objects import AverageSubTomogram, SetOfClassesSubTomograms
 from tomo.protocols.protocol_base import ProtTomoSubtomogramAveraging
 from xmipp2.convert import writeVolume, writeSetOfVolumes, readDocfile, writeDocfile
 
@@ -59,7 +59,7 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
                       label='Random initialization of classes:', help="Initialize randomly the first classes. If you "
                            "don't initialize randomly, you must supply a set of initial classes")
         form.addParam('initialRef', PointerParam, label="Initial references",
-                      condition="not randomInitialization", pointerClass='SetOfClassesSubTomograms, SetOfVolumes',
+                      condition="not randomInitialization", pointerClass='SetOfClassesSubTomograms, SetOfVolumes, Volume',
                       help='Set of initial classes to start the classification')
         form.addParam('numberOfReferences', IntParam, label='Number of references', default=10,
                       condition="randomInitialization", help="Number of references to generate automatically")
@@ -94,11 +94,14 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRoot,self.fnSel),numberOfMpi=1)
         if self.initialRef.get() is not None:
             fnRootRef = os.path.join(fnDir, "reference")
-            if isinstance(self.initialRef.get(), SetOfVolumes):
-                writeSetOfVolumes(self.initialRef.get(),fnRootRef)
+            if isinstance(self.initialRef.get(), Volume):
+                writeVolume(self.initialRef.get(),self._getExtraPath("reference.vol"))
             else:
-                writeSetOfVolumes(self.initialRef.get().iterRepresentatives(),fnRootRef)
-            self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRootRef,self._getExtraPath("references.sel")),numberOfMpi=1)
+                if isinstance(self.initialRef.get(), SetOfVolumes):
+                    writeSetOfVolumes(self.initialRef.get(),fnRootRef)
+                elif isinstance(self.initialRef.get(), SetOfClassesSubTomograms):
+                    writeSetOfVolumes(self.initialRef.get().iterRepresentatives(),fnRootRef)
+                self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRootRef,self._getExtraPath("references.sel")),numberOfMpi=1)
         if self.inputMask.get() is not None:
             self.fnMask = os.path.join(fnDir, "mask.vol")
             writeVolume(self.inputMask.get(), self.fnMask)
@@ -114,7 +117,10 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         if self.downscDim.get() is not None:
             args = args + ' -dim ' + str(self.downscDim.get())
         if self.initialRef.get() is not None:
-            args = args + ' -ref ' + self._getExtraPath("references.sel")
+            if isinstance(self.initialRef.get(), Volume):
+                args = args + ' -ref ' + self._getExtraPath("reference.vol")
+            else:
+                args = args + ' -ref ' + self._getExtraPath("references.sel")
         else:
             args = args + ' -nref ' + str(self.numberOfReferences.get())
         if self.inputMask.get() is not None:
