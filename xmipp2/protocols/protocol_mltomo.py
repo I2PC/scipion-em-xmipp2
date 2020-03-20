@@ -37,7 +37,7 @@ from pwem.objects import SetOfVolumes, Volume
 from tomo.objects import AverageSubTomogram, SetOfClassesSubTomograms
 from tomo.protocols import ProtImportCoordinates3D, ProtTomoSubtomogramAveraging
 
-from ..convert import writeVolume, writeDocfile, writeSetOfVolumes
+from ..convert import writeVolume, writeDocfile, writeSetOfVolumes, readDocfile
 
 
 class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):

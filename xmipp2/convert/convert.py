@@ -105,11 +105,11 @@ def matrix2eulerAngles(A):
 
 
 def readDocfile(self, item):
-    nline = self.docFile.next()
+    nline = self.docFile.readline()
     if nline.startswith(' ;'):
-        nline = self.docFile.next()
+        nline = self.docFile.readline()
     if nline.startswith(' ;'):
-        nline = self.docFile.next()
+        nline = self.docFile.readline()
     nline = nline.rstrip()
     id = int(nline.split()[0])
     if (item.getObjId() == id):
