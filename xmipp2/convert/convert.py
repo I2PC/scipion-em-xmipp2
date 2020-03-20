@@ -144,7 +144,7 @@ def writeDocfile(self, fhSel, fhDoc, volumes, wedge):
     for line in fhSel:
         imgName = line.split()[0]
         for vol in volumes.iterItems():
-            if ('000%d' % vol.getObjId()) in line:
+            if ('00%d' % vol.getObjId()) in line:
                 rot, tilt, psi, xoff, yoff, zoff = matrix2eulerAngles(vol.getTransform().getMatrix())
                 xoff = xoff * (-1)
                 yoff = yoff * (-1)
