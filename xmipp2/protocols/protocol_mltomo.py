@@ -28,13 +28,16 @@
 
 import os
 from os.path import exists
-from pyworkflow.em.data import SetOfVolumes, Volume
+
 from pyworkflow.utils.path import makePath
 from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, StringParam, LEVEL_ADVANCED
 
+from pwem.objects import SetOfVolumes, Volume
+
 from tomo.objects import AverageSubTomogram, SetOfClassesSubTomograms
-from tomo.protocols.protocol_base import ProtTomoSubtomogramAveraging
-from xmipp2.convert import writeVolume, writeSetOfVolumes, readDocfile, writeDocfile
+from tomo.protocols import ProtImportCoordinates3D, ProtTomoSubtomogramAveraging
+
+from ..convert import writeVolume, writeDocfile, writeSetOfVolumes, readDocfile
 
 
 class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):

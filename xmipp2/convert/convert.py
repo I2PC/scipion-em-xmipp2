@@ -30,8 +30,8 @@ This module contains converter functions that will serve to:
 """
 import math
 import numpy as np
-from pyworkflow.em.convert import ImageHandler
-from pyworkflow.em.data import Transform
+from pwem.objects import Transform
+from pwem.emlib.image import ImageHandler
 
 
 def writeVolume(volume, outputFn):
@@ -105,11 +105,11 @@ def matrix2eulerAngles(A):
 
 
 def readDocfile(self, item):
-    nline = self.docFile.next()
+    nline = self.docFile.readline()
     if nline.startswith(' ;'):
-        nline = self.docFile.next()
+        nline = self.docFile.readline()
     if nline.startswith(' ;'):
-        nline = self.docFile.next()
+        nline = self.docFile.readline()
     nline = nline.rstrip()
     id = int(nline.split()[0])
     if (item.getObjId() == id):
@@ -144,7 +144,7 @@ def writeDocfile(self, fhSel, fhDoc, volumes, wedge):
     for line in fhSel:
         imgName = line.split()[0]
         for vol in volumes.iterItems():
-            if ('00%d' % vol.getObjId()) in line:
+            if ('%06d' % vol.getObjId()) in line:
                 rot, tilt, psi, xoff, yoff, zoff = matrix2eulerAngles(vol.getTransform().getMatrix())
                 xoff = xoff * (-1)
                 yoff = yoff * (-1)

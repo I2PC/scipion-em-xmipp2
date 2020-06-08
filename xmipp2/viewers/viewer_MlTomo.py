@@ -29,16 +29,12 @@
 This module implements visualization program
 for ml_tomo.
 """
-
+import os
 from xmipp2.protocols import Xmipp2ProtMLTomo
 from pyworkflow.viewer import DESKTOP_TKINTER, WEB_DJANGO, ProtocolViewer
 from pyworkflow.protocol.params import LabelParam
-from pyworkflow.em.viewers.plotter import EmPlotter
-from pyworkflow.em.viewers.views import DataView
-
-import xmippLib
-import os
-
+from pwem.viewers.plotter import EmPlotter
+from pwem.viewers.views import DataView
 
 
 class Xmipp2ProtMlTomoViewer(ProtocolViewer):

@@ -23,24 +23,25 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
-from pyworkflow.em.viewers import showj
-from pyworkflow.viewer import Viewer, DESKTOP_TKINTER, WEB_DJANGO, CommandView
-from pyworkflow.em.protocol import *
-
-from pyworkflow.em.viewers.viewers_data import DataViewer
-from pyworkflow.em.viewers.plotter import EmPlotter
-from pyworkflow.em.viewers.views import CtfView, ObjectView
-from pyworkflow.em.viewers.showj import *
-from tomo.viewers.viewers_data import TomoDataViewer
-
-import xmippLib
-from xmipp2.convert import *
-from xmipp2.protocols.protocol_mltomo import Xmipp2ProtMLTomo
 import numpy as np
+from pwem.objects import SetOfNormalModes
+from pyworkflow.utils import removeBaseExt
+from pyworkflow.viewer import DESKTOP_TKINTER, WEB_DJANGO
+from pwem.protocols import *
 
-import tomo.objects
-import tomo.viewers.views as v
+from pwem.viewers.viewers_data import DataViewer
+from pwem.viewers.plotter import EmPlotter
+from pwem.viewers.views import CtfView, ObjectView
+from pwem.viewers.showj import *
+from pwem import Domain
+
+TomoDataViewer = Domain.importFromPlugin('tomo.viewers.viewers_data',
+                                         'TomoDataViewer', doRaise=True)
+SetOfClassesSubTomograms = Domain.importFromPlugin('tomo.objects',
+                                         'SetOfClassesSubTomograms')
+
+from xmipp2.protocols.protocol_mltomo import Xmipp2ProtMLTomo
+
 
 
 class XmippViewer(DataViewer):
@@ -85,7 +86,7 @@ class XmippViewer(DataViewer):
             #                               viewParams={OBJCMDS: objCommands},
             #                               **kwargs))
 
-        elif issubclass(cls, tomo.objects.SetOfClassesSubTomograms):
+        elif issubclass(cls, SetOfClassesSubTomograms):
             self._views.append(v.ClassesSubTomogramsView(self._project, obj.strId(),
                                                    obj.getFileName()))
 
