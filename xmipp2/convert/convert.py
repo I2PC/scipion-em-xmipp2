@@ -149,5 +149,8 @@ def writeDocfile(self, fhSel, fhDoc, volumes, wedge):
                 xoff = xoff * (-1)
                 yoff = yoff * (-1)
                 zoff = zoff * (-1)
-                fhDoc.write(" ; %s\n%d 10 %f %f %f %f %f %f %d %d 0 0\n" % (imgName, vol.getObjId(), rot, tilt, psi, xoff, yoff,
-                                                                        zoff, vol.getClassId(), wedge))
+                classid = vol.getClassId()
+                if classid is None:
+                    classid = 0
+                fhDoc.write(" ; %s\n%d 10 %f %f %f %f %f %f %d %d 0 0\n" % (imgName, vol.getObjId(), rot, tilt, psi,
+                                                                            xoff, yoff, zoff, classid, wedge))
