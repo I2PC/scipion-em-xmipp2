@@ -24,5 +24,3 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
-from tomo.viewers.viewers_data import TomoDataViewer

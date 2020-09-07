@@ -1,7 +1,7 @@
 # coding: latin-1
 # **************************************************************************
 # *
-# * Authors:     Jose Luis Vilas (jlvilas@cnb.csic.es)
+# * Authors:     Estrella Fernandez Gimenez (me.fernandez@cnb.csic.es)
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -25,20 +25,16 @@
 # *
 # **************************************************************************
 """
-@Article{Voss2009,
-  Title                    = {BDoG Picker and TiltPicker: software tools to facilitate particle selection in single particle electron microscopy.},
-  Author                   = {Voss, N.R. Yoshioka, C.K. Radermacher, M. Potter, C.S. and Carragher, B.},
-  Journal                  = {Journal Structutal Biology},
+@Article{Scheres2009c,
+  Title                    = {Averaging of Electron Subtomograms and Random Conical Tilt Reconstructions through Likelihood Optimization},
+  Author                   = {Sjors H.W. Scheres, Roberto Melero, Mikel Valle, Jose-Maria Carazo},
+  Journal                  = {Structure},
   Year                     = {2009},
-  Month                    = {May},
-  Number                   = {2},
-  Pages                    = {205--213},
-  Volume                   = {166},
-  Doi                      = {http://dx.doi.org/10.1016/j.jsb.2009.01.004},
-  Keywords                 = {EM; Cryo-electron microscopy; Particle picking; Random conical tilt; Orthogonal tilt reconstruction},
-  Pii                      = {S1047847709000197},
-  Pmid                     = {19374019},
-  Url                      = {http://dx.doi.org/10.1016/j.jsb.2009.01.004}
+  Month                    = {December},
+  Number                   = {9},
+  Pages                    = {1563-1572},
+  Volume                   = {17},
+  Doi                      = {https://doi.org/10.1016/j.str.2009.10.009}
 }
 
 """
