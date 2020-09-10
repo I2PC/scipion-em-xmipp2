@@ -32,6 +32,7 @@ import pwem
 from pyworkflow.utils import Environ
 from .constants import XMIPP2_HOME
 
+__version__ = '3.0.1'
 
 class Plugin(pwem.Plugin):
     _homeVar = XMIPP2_HOME
