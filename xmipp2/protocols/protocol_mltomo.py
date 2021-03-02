@@ -102,7 +102,7 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
                 writeVolume(self.initialRef.get(),self._getExtraPath("reference.vol"))
             else:
                 if isinstance(self.initialRef.get(), SetOfVolumes):
-                    writeSetOfVolumes(self.initialRef.get(),fnRootRef)
+                    writeSetOfVolumes(self.initialRef.get(), fnRootRef)
                 elif isinstance(self.initialRef.get(), SetOfClassesSubTomograms):
                     writeSetOfVolumes(self.initialRef.get().iterRepresentatives(), fnRootRef)
                 self.runJob("xmipp_selfile_create", '"%s*.vol">%s' % (fnRootRef, self._getExtraPath("references.sel")),
