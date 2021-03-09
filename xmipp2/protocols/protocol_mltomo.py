@@ -28,6 +28,7 @@
 
 import os
 from os.path import exists
+from pyworkflow import BETA
 from pyworkflow.utils.path import makePath
 from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, StringParam, LEVEL_ADVANCED
 from pwem.objects import SetOfVolumes, Volume
@@ -44,6 +45,7 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         function."""
 
     _label = 'mltomo'
+    _devStatus = BETA
 
     def __init__(self, **args):
         ProtTomoSubtomogramAveraging.__init__(self, **args)
