@@ -28,15 +28,12 @@
 
 import os
 from os.path import exists
-
+from pyworkflow import BETA
 from pyworkflow.utils.path import makePath
 from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, StringParam, LEVEL_ADVANCED
-
 from pwem.objects import SetOfVolumes, Volume
-
 from tomo.objects import AverageSubTomogram, SetOfClassesSubTomograms
-from tomo.protocols import ProtImportCoordinates3D, ProtTomoSubtomogramAveraging
-
+from tomo.protocols import ProtTomoSubtomogramAveraging
 from ..convert import writeVolume, writeDocfile, writeSetOfVolumes, readDocfile
 
 
@@ -48,21 +45,22 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         function."""
 
     _label = 'mltomo'
+    _devStatus = BETA
 
     def __init__(self, **args):
         ProtTomoSubtomogramAveraging.__init__(self, **args)
 
-
-    #--------------------------- DEFINE param functions ------------------------
+    # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='Input volumes')
         form.addParam('inputVolumes', PointerParam, pointerClass="SetOfSubTomograms, SetOfVolumes",
                       label='Set of volumes', help="Set of subtomograms to align with MLTomo")
         form.addParam('randomInitialization', BooleanParam, default=True,
-                      label='Random initialization of classes:', help="Initialize randomly the first classes. If you "
-                           "don't initialize randomly, you must supply a set of initial classes")
-        form.addParam('initialRef', PointerParam, label="Initial references",
-                      condition="not randomInitialization", pointerClass='SetOfClassesSubTomograms, SetOfVolumes, Volume',
+                      label='Random initialization of classes:',
+                      help="Initialize randomly the first classes. If you  don't initialize randomly, you must supply "
+                           "a set of initial classes")
+        form.addParam('initialRef', PointerParam, label="Initial references", condition="not randomInitialization",
+                      pointerClass='SetOfClassesSubTomograms, SetOfVolumes, Volume',
                       help='Set of initial classes to start the classification')
         form.addParam('numberOfReferences', IntParam, label='Number of references', default=10,
                       condition="randomInitialization", help="Number of references to generate automatically")
@@ -79,32 +77,38 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         form.addParam('extraParams', StringParam, label='Extra parameters', default='-perturb -dont_impute',
                       expertLevel=LEVEL_ADVANCED,
                       help="Any of the parameters of the MLTomo (https://github.com/I2PC/xmipp-portal/wiki/Ml_tomo )")
+        form.addParam('cleanFiles', BooleanParam, label='Keep intermediate files?', default=True,
+                      expertLevel=LEVEL_ADVANCED,
+                      help="Keep intermediate files generated during execution once the execution is finished, this "
+                           "can be useful to evaluate the progression of the results during the different iteration"
+                           "but can occupy a considerable sum of disk space, specially if the input set is big.")
         form.addParallelSection(threads=0, mpi=8)
 
-    #--------------------------- INSERT steps functions --------------------------------------------
+    # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep('convertInputStep')
         self._insertFunctionStep('runMLTomo')
         self._insertFunctionStep('createOutput')
 
-    #--------------------------- STEPS functions -------------------------------
+    # --------------------------- STEPS functions -------------------------------
     def convertInputStep(self):
-        fnDir=self._getExtraPath("inputVolumes")
+        fnDir = self._getExtraPath("inputVolumes")
         makePath(fnDir)
-        fnRoot=os.path.join(fnDir,"subtomo")
-        writeSetOfVolumes(self.inputVolumes.get(),fnRoot)
-        self.fnSel= self._getExtraPath("subtomograms.sel")
-        self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRoot,self.fnSel),numberOfMpi=1)
+        fnRoot = os.path.join(fnDir, "subtomo")
+        writeSetOfVolumes(self.inputVolumes.get(), fnRoot)
+        self.fnSel = self._getExtraPath("subtomograms.sel")
+        self.runJob("xmipp_selfile_create", '"%s*.vol">%s' % (fnRoot, self.fnSel), numberOfMpi=1)
         if self.initialRef.get() is not None:
             fnRootRef = os.path.join(fnDir, "reference")
             if isinstance(self.initialRef.get(), Volume):
                 writeVolume(self.initialRef.get(),self._getExtraPath("reference.vol"))
             else:
                 if isinstance(self.initialRef.get(), SetOfVolumes):
-                    writeSetOfVolumes(self.initialRef.get(),fnRootRef)
+                    writeSetOfVolumes(self.initialRef.get(), fnRootRef)
                 elif isinstance(self.initialRef.get(), SetOfClassesSubTomograms):
-                    writeSetOfVolumes(self.initialRef.get().iterRepresentatives(),fnRootRef)
-                self.runJob("xmipp_selfile_create",'"%s*.vol">%s'%(fnRootRef,self._getExtraPath("references.sel")),numberOfMpi=1)
+                    writeSetOfVolumes(self.initialRef.get().iterRepresentatives(), fnRootRef)
+                self.runJob("xmipp_selfile_create", '"%s*.vol">%s' % (fnRootRef, self._getExtraPath("references.sel")),
+                            numberOfMpi=1)
         if self.inputMask.get() is not None:
             self.fnMask = os.path.join(fnDir, "mask.vol")
             writeVolume(self.inputMask.get(), self.fnMask)
@@ -138,9 +142,9 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         inputSet = self.inputVolumes.get()
         self.subtomoSet.copyInfo(inputSet)
         if self.numberOfIters < 10:
-            self.fnDoc = '%s/mltomo_it00000%d.doc' % (self._getExtraPath(),self.numberOfIters)
+            self.fnDoc = '%s/mltomo_it00000%d.doc' % (self._getExtraPath(), self.numberOfIters)
         else:
-            self.fnDoc = '%s/mltomo_it0000%d.doc' % (self._getExtraPath(),self.numberOfIters)
+            self.fnDoc = '%s/mltomo_it0000%d.doc' % (self._getExtraPath(), self.numberOfIters)
         self.docFile = open(self.fnDoc)
         self.subtomoSet.copyItems(inputSet, updateItemCallback=self._updateItem)
         self.docFile.close()
@@ -150,15 +154,16 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         self._defineSourceRelation(self.inputVolumes, self.subtomoSet)
         self._defineOutputs(outputClassesSubtomo=classesSubtomoSet)
         self._defineSourceRelation(self.inputVolumes, classesSubtomoSet)
-        # self._cleanFiles() # User prefers to keep all files generated by MLTomo
+        if self.cleanFiles.get():
+            self._cleanFiles()
 
-    #--------------------------- INFO functions --------------------------------
+    # --------------------------- INFO functions --------------------------------
     def _summary(self):
         summary = []
         if hasattr(self, 'outputClassesSubtomo'):
-            summary.append("Input subtomograms: *%d* \nRequested classes: *%d*\nGenerated classes: *%d* in *%d* iterations\n"
-                       % (self.inputVolumes.get().getSize(),self.numberOfReferences,
-                          self.outputClassesSubtomo.getSize(),self.numberOfIters))
+            summary.append("Input subtomograms: *%d* \nRequested classes: *%d*\nGenerated classes: *%d* in *%d* "
+                           "iterations\n" % (self.inputVolumes.get().getSize(), self.numberOfReferences,
+                                             self.outputClassesSubtomo.getSize(), self.numberOfIters))
         else:
             summary.append("Output classes not ready yet.")
         return summary
@@ -167,8 +172,8 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         methods = []
         if hasattr(self, 'outputClassesSubtomo'):
             methods.append('We classified %d subtomograms from %s into %d classes %s using *MLTomo*.'
-                       % (self.inputVolumes.get().getSize(),self.getObjectTag('inputVolumes'),
-                          self.outputClassesSubtomo.getSize(),self.getObjectTag('outputClassesSubtomo')))
+                           % (self.inputVolumes.get().getSize(), self.getObjectTag('inputVolumes'),
+                              self.outputClassesSubtomo.getSize(), self.getObjectTag('outputClassesSubtomo')))
         else:
             methods.append("Output classes not ready yet.")
         return methods
@@ -176,7 +181,7 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
     def _citations(self):
         return ['Scheres2009c']
 
-    #--------------------------- UTILS functions ----------------------------------
+    # --------------------------- UTILS functions ----------------------------------
     def _createFilesForMLTomo(self):
         inputVols = self.inputVolumes.get()
         mw = 0
@@ -186,15 +191,15 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
             fhWedge.write(" ; Wedgeinfo\n ; wedge_y\n")
             fhWedge.write("1 2 -90 90\n")
             fhWedge.close()
-        elif (inputVols.getFirstItem().getAcquisition().getAngleMin()):
+        elif inputVols.getFirstItem().getAcquisition().getAngleMin():
             mw = 1
             wedgeDict={}
             for subtomogram in inputVols:
-                key=(subtomogram.getAcquisition().getAngleMin(),subtomogram.getAcquisition().getAngleMax())
+                key = (subtomogram.getAcquisition().getAngleMin(), subtomogram.getAcquisition().getAngleMax())
                 if not key in wedgeDict:
-                    wedgeDict[key]=[]
+                    wedgeDict[key] = []
                 wedgeDict[key].append(subtomogram)
-            fhWedge = open(self._getExtraPath("wedge.doc"),'w')
+            fhWedge = open(self._getExtraPath("wedge.doc"), 'w')
             fhWedge.write(" ; Wedgeinfo\n ; wedge_y\n")
             i=1
             for key in wedgeDict:
@@ -202,19 +207,19 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
                 i+=1
             fhWedge.close()
 
-        fhDoc = open(self._getExtraPath("subtomograms.doc"),'w')
-        fhSel = open(self._getExtraPath("subtomograms.sel"),'r')
+        fhDoc = open(self._getExtraPath("subtomograms.doc"), 'w')
+        fhSel = open(self._getExtraPath("subtomograms.sel"), 'r')
 
         if inputVols.getFirstItem().getTransform() is None:
             j = 1
-            fhDoc.write(" ; Headerinfo columns: rot (1), tilt (2), psi (3), Xoff (4), Yoff (5), Zoff (6), Ref (7), Wedge (8), "
-                "Pmax/sumP (9), LL (10)\n")
+            fhDoc.write(" ; Headerinfo columns: rot (1), tilt (2), psi (3), Xoff (4), Yoff (5), Zoff (6), Ref (7), "
+                        "Wedge (8), Pmax/sumP (9), LL (10)\n")
             for line in fhSel:
                 imgName = line.split()[0]
-                fhDoc.write(" ; %s\n%d 10  0 0 0 0 0 0 0 %d 0 0\n" %(imgName,j,mw))
-                j+=1
+                fhDoc.write(" ; %s\n%d 10  0 0 0 0 0 0 0 %d 0 0\n" % (imgName, j, mw))
+                j += 1
         else:
-            writeDocfile(self,fhSel, fhDoc, inputVols, mw)
+            writeDocfile(self, fhSel, fhDoc, inputVols, mw)
 
         fhDoc.close()
         fhSel.close()
@@ -245,11 +250,11 @@ class Xmipp2ProtMLTomo(ProtTomoSubtomogramAveraging):
         for ref in range(1, int(self.numberOfReferences) + 1):
             if os.stat(self._getExtraPath('mltomo_it00000%d_ref00000%d.sel' % (self.numberOfIters, ref))).st_size == 0:
                 os.remove(self._getExtraPath('mltomo_it00000%d_ref00000%d.sel' % (self.numberOfIters, ref)))
-                os.remove(self._getExtraPath('mltomo_ref00000%d.vol' % (ref)))
+                os.remove(self._getExtraPath('mltomo_ref00000%d.vol' % ref))
                 continue
             else:
                 continue
         for iter in range(1, int(self.numberOfIters)):
             os.remove(self._getExtraPath('mltomo_it00000%d.doc' % iter))
             for ref in range(1, int(self.numberOfReferences) + 1):
-                os.remove(self._getExtraPath('mltomo_it00000%d_ref00000%d.sel' % (iter,ref)))
+                os.remove(self._getExtraPath('mltomo_it00000%d_ref00000%d.sel' % (iter, ref)))
