@@ -14,6 +14,11 @@ from xmipp2 import __version__
 
 here = path.abspath(path.dirname(__file__))
 
+# Load requirements.txt
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+
+
 # Get the long description from the README file
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
@@ -31,6 +36,7 @@ setup(
     author_email='scipion@cnb.csic.es',  # Optional
     keywords='scipion cryoem imageprocessing scipion-3.0',  # Optional
     packages=find_packages(),
+    install_requires=[requirements],
     entry_points={  # Optional
        'pyworkflow.plugin': 'xmipp2 = xmipp2',
     },
