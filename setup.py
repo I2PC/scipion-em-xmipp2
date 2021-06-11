@@ -10,8 +10,14 @@ from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
 from os import path
+from xmipp2 import __version__
 
 here = path.abspath(path.dirname(__file__))
+
+# Load requirements.txt
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+
 
 # Get the long description from the README file
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
@@ -22,14 +28,15 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name='scipion-em-xmipp2',  # Required
-    version='3.0.0',  # Required
+    version=__version__,  # Required
     description='xmipp2 ready to use in scipion.',  # Required
     long_description=long_description,  # Optional
-    url='https://github.com/scipion-em/scipion-em-xmipp2',  # Optional
+    url='https://github.com/I2PC/scipion-em-xmipp2.git',  # Optional
     author='I2PC',  # Optional
     author_email='scipion@cnb.csic.es',  # Optional
     keywords='scipion cryoem imageprocessing scipion-3.0',  # Optional
     packages=find_packages(),
+    install_requires=[requirements],
     entry_points={  # Optional
        'pyworkflow.plugin': 'xmipp2 = xmipp2',
     },
