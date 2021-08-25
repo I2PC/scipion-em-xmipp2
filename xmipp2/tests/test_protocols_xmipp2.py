@@ -51,7 +51,8 @@ class TestXmipp2Mltomo(BaseTest):
                                       randomInitialization=randomInitialization,
                                       numberOfReferences=numberOfReferences,
                                       numberOfIters=numberOfIters,
-                                      angularSampling=angularSampling)
+                                      angularSampling=angularSampling,
+                                      numberOfMpi=1)
         self.launchProtocol(protMltomo)
         self.assertIsNotNone(protMltomo.outputSubtomograms,
                              "There was a problem with SetOfSubtomograms output")
